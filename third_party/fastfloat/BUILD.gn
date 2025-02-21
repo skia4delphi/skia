@@ -1,0 +1,19 @@
+# Copyright (c) 2011-2025 Google LLC.
+# Copyright (c) 2021-2025 Skia4Delphi Project.
+#
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+declare_args() {
+}
+
+import("../third_party.gni")
+
+third_party("fastfloat") {
+  public_include_dirs = [
+    ".",
+    "../externals/fastfloat/include",
+  ]
+}
+
+

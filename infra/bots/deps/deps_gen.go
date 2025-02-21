@@ -252,4 +252,9 @@ var deps = deps_parser.DepsEntries{
 		Version: "76855a9baecc97fa144ce70d7ae43a9f878e14c8",
 		Path:    "third_party/externals/swiftshader",
 	},
+	"github.com/skia4delphi/fast_float": {
+		Id:      "github.com/skia4delphi/fast_float",
+		Version: "77cc847c842c49e7e3477c1e95da2b6540166d66",
+		Path:    "third_party/externals/fastfloat",
+	},
 }

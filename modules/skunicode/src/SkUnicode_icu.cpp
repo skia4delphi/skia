@@ -685,7 +685,7 @@ namespace SkUnicodes::ICU {
 sk_sp<SkUnicode> Make() {
     // We haven't yet created a way to encode the ICU data for assembly on Windows,
     // so we use a helper library to load icudtl.dat from the harddrive.
-#if defined(SK_USING_THIRD_PARTY_ICU) && defined(SK_BUILD_FOR_WIN)
+#if defined(SK_USING_THIRD_PARTY_ICU) && defined(SK_BUILD_FOR_WIN) && !defined(SK_ICU_STATIC)
     if (!SkLoadICU()) {
         static SkOnce once;
         once([] { SkDEBUGF("SkLoadICU() failed!\n"); });

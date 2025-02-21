@@ -22,6 +22,9 @@ declare_args() {
   malloc = ""
   werror = false
   xcode_sysroot = ""
+
+  # Argument to enable or disable ARM64E build for iOS.
+  ios_enable_arm64e = !is_sk4d_build || is_sk4d_component_build
 }
 
 if (is_ios && xcode_sysroot == "") {
@@ -214,9 +217,13 @@ config("default") {
       _arch_flags = [
         "-arch",
         "arm64",
-        "-arch",
-        "arm64e",
       ]
+      if (ios_enable_arm64e) {
+         _arch_flags += [
+          "-arch",
+          "arm64e",
+         ]
+      }
     } else if (current_cpu == "x86") {
       _arch_flags = [
         "-arch",

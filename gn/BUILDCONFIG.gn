@@ -38,6 +38,10 @@ declare_args() {
   # Enable -H, which prints the include tree during compilation.
   # For use by external tools for analyzing include files.
   show_includes = false
+
+  is_sk4d_build = false
+  is_sk4d_component_build = false
+  sk4d_enable_assertions = false
 }
 declare_args() {
   is_debug = !is_official_build
@@ -176,6 +180,17 @@ template("component") {
   }
 }
 
+template("sk4d_component") {
+  _component_mode = "static_library"
+  if (is_sk4d_component_build) {
+    _component_mode = "shared_library"
+  }
+
+  target(_component_mode, target_name) {
+    forward_variables_from(invoker, "*")
+  }
+}
+
 # Default configs
 default_configs = [
   "//gn/skia:default",
@@ -214,7 +229,14 @@ set_defaults("shared_library") {
 
 set_defaults("component") {
   configs = default_configs
-  if (!is_component_build) {
+  if (!is_component_build && !is_sk4d_build) {
+    complete_static_lib = true
+  }
+}
+
+set_defaults("sk4d_component") {
+  configs = default_configs
+  if (!is_sk4d_component_build) {
     complete_static_lib = true
   }
 }

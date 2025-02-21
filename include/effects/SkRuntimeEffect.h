@@ -451,6 +451,8 @@ public:
     BuilderUniform uniform(std::string_view name) { return { this, fEffect->findUniform(name) }; }
     BuilderChild child(std::string_view name) { return { this, fEffect->findChild(name) }; }
 
+    void setUniform(std::string_view name, const void* data);
+
     // Get access to the collated uniforms and children (in the order expected by APIs like
     // makeShader on the effect):
     sk_sp<const SkData> uniforms() const { return fUniforms; }

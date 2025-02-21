@@ -9,6 +9,9 @@
 #include "include/core/SkTypes.h"
 #include "include/private/base/SkTo.h"
 #include "include/utils/SkParse.h"
+#ifdef SK_FAST_FLOAT
+#include <fast_float/fast_float.h>
+#endif
 
 #include <cstdint>
 #include <cstdlib>
@@ -179,10 +182,20 @@ const char* SkParse::FindScalar(const char str[], SkScalar* value) {
     str = skip_ws(str);
 
     char* stop;
-    float v = (float)strtod(str, &stop);
+    float v;
+#ifdef SK_FAST_FLOAT
+    double d;
+    auto result = fast_float::from_chars(str, str + std::strlen(str), d);
+    if (result.ec != std::errc())
+      return nullptr;
+    v = (float)d;
+    stop = const_cast<char*>(result.ptr);
+#else
+    v = (float)strtod(str, &stop);
     if (str == stop) {
         return nullptr;
     }
+#endif
     if (value) {
         *value = v;
     }

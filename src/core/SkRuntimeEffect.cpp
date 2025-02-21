@@ -965,6 +965,15 @@ void SkRuntimeEffect::RegisterFlattenables() {
     SkFlattenable::Register("SkRTShader", SkRuntimeShader::CreateProc);
 }
 
+void SkRuntimeEffectBuilder::setUniform(std::string_view name, const void* data) {
+    auto uniform = fEffect->findUniform(name);
+    if (!uniform) {
+        SkDEBUGFAIL("Assigning to missing variable");
+    } else {
+        memcpy(SkTAddOffset<void>(this->writableUniformData(), uniform->offset), data, uniform->sizeInBytes()); 
+    }
+}
+
 sk_sp<SkShader> SkRuntimeEffectBuilder::makeShader(const SkMatrix* localMatrix) const {
     return this->effect()->makeShader(this->uniforms(), this->children(), localMatrix);
 }

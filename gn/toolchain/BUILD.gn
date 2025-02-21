@@ -48,6 +48,11 @@ declare_args() {
   # such builders to limit the number of concurrent link steps.
   # link_pool_depth < 0 means no pool, 0 means cpu count, > 0 sets pool size.
   link_pool_depth = -1
+
+  # Auxiliary arguments used internally by Skia4Delphi's build scripts for
+  # cross-platform compilation.
+  apple_use_ar = false
+  win_vc_skip_env_setup = false
 }
 
 declare_args() {
@@ -59,9 +64,11 @@ declare_args() {
 if (host_os == "win") {
   shell = "cmd.exe /c "
   stamp = "$shell echo >"
+  script_exec = "python"
 } else {
   shell = ""
   stamp = "touch"
+  script_exec = "python3"
 }
 
 if (current_toolchain == default_toolchain) {
@@ -88,13 +95,15 @@ template("msvc_toolchain") {
     bin = "$win_vc/Tools/MSVC/$win_toolchain_version/bin/HostX64/$toolchain_target_cpu"
 
     env_setup = ""
-    if (toolchain_target_cpu == "x86") {
-      # Toolchain asset includes a script that configures for x86 building.
-      # We don't support x86 builds with local MSVC installations.
-      env_setup = "$shell $win_sdk/bin/SetEnv.cmd /x86 && "
-    } else if (toolchain_target_cpu == "arm64") {
-      # ARM64 compiler is incomplete - it relies on DLLs located in the host toolchain directory.
-      env_setup = "$shell set \"PATH=%PATH%;$win_vc\\Tools\\MSVC\\$win_toolchain_version\\bin\\HostX64\\x64\" && "
+    if (!win_vc_skip_env_setup) {
+      if (toolchain_target_cpu == "x86") {
+        # Toolchain asset includes a script that configures for x86 building.
+        # We don't support x86 builds with local MSVC installations.
+        env_setup = "$shell $win_sdk/bin/SetEnv.cmd /x86 && "
+      } else if (toolchain_target_cpu == "arm64") {
+        # ARM64 compiler is incomplete - it relies on DLLs located in the host toolchain directory.
+        env_setup = "$shell set \"PATH=%PATH%;$win_vc\\Tools\\MSVC\\$win_toolchain_version\\bin\\HostX64\\x64\" && "
+      }
     }
 
     cl_m32_flag = ""
@@ -237,7 +246,7 @@ template("msvc_toolchain") {
 
     tool("copy") {
       cp_py = rebase_path("../cp.py")
-      command = "$shell python3 \"$cp_py\" {{source}} {{output}}"
+      command = "$shell $script_exec \"$cp_py\" {{source}} {{output}}"
       description = "copy {{source}} {{output}}"
     }
 
@@ -312,18 +321,18 @@ template("gcc_like_toolchain") {
       description = "assemble {{source}}"
     }
 
-    if (is_mac || is_ios) {
+    if ((is_mac || is_ios) && !apple_use_ar) {
       not_needed([ "ar" ])  # We use libtool instead.
     }
 
     tool("alink") {
-      if (is_mac || is_ios) {
+      if ((is_mac || is_ios) && !apple_use_ar) {
         command = "libtool -static -o {{output}} -no_warning_for_no_symbols {{inputs}}"
       } else {
         rspfile = "{{output}}.rsp"
         rspfile_content = "{{inputs}}"
         rm_py = rebase_path("../rm.py")
-        command = "$shell python3 \"$rm_py\" \"{{output}}\" && $ar rcs {{output}} @$rspfile"
+        command = "$shell $script_exec \"$rm_py\" \"{{output}}\" && $ar rcs {{output}} @$rspfile"
       }
 
       outputs =

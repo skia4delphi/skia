@@ -81,9 +81,11 @@ arch("skcms_TransformSkx") {
 }
 
 static_library("skcms") {
-  cflags = []
-  if (!is_win || is_clang) {
-    cflags += [ "-std=c11" ]
+  cflags_c = []
+  if (is_win) {
+    cflags_c += [ "-std:c11" ]
+  } else if (is_clang) {
+    cflags_c += [ "-std=c11" ]
   }
   if (target_cpu != "x64" || target_os == "android") {
     defines = [

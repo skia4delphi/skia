@@ -5,6 +5,11 @@ _src = "../externals/icu/source"
 
 declare_args() {
   skia_use_system_icu = is_official_build && !is_wasm
+
+  # The ICU data converted to a CPP file can be built with 'clang-cl' but not
+  # with 'cl', meaning static linking of ICU data for Windows is only possible
+  # when using the LLVM toolchain.
+  skia_use_icu_static = is_sk4d_build && is_clang
 }
 
 icu_sources = [

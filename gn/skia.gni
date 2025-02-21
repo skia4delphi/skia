@@ -103,10 +103,20 @@ declare_args() {
   }
 
   skia_build_rust_targets = false
+
+  # Enable FastFloat when building Skia4Delphi. This is important not only for
+  # performance but also to resolve a long-standing Skia issue. When parsing SVG
+  # files, float values must be locale-independent, ensuring the use of a period
+  # as the decimal separator. This maximizes global SVG compatibility.
+  skia_use_fastfloat = is_sk4d_build
 }
 
 declare_args() {
   skia_enable_ganesh = skia_enable_gpu
+
+  # Early versions of Windows ARM64 did not include the OpenGL32 library.
+  # This was likely the reason Skia avoided adding it by default.
+  skia_link_gl_winarm = is_sk4d_build && skia_use_gl
 }
 
 declare_args() {

@@ -13,7 +13,7 @@ if (skia_use_system_icu) {
     defines = [ "U_USING_ICU_NAMESPACE=0" ]
   }
 } else {
-  if (target_cpu == "wasm") {
+  if (target_cpu == "wasm" || (is_win && skia_use_icu_static)) {
     data_assembly = "$target_gen_dir/icudtl_dat.cpp"
   } else {
     data_assembly = "$target_gen_dir/icudtl_dat.S"
@@ -31,7 +31,7 @@ if (skia_use_system_icu) {
     data_dir += "common"
   }
   action("make_data_assembly") {
-    if (target_cpu == "wasm") {
+    if (target_cpu == "wasm" || is_win) {
       _u_icu_version_major_num =
           "74"  # defined in source/common/unicode/uvernum.h
       script = "make_data_cpp.py"
@@ -95,16 +95,22 @@ if (skia_use_system_icu) {
     }
     sources = icu_sources
     if (is_win) {
-      deps = [ ":icudata" ]
+      if (skia_use_icu_static) {
+        public_defines += [ "SK_ICU_STATIC" ]
+        sources += [ "$data_assembly" ]
+        deps = [ ":make_data_assembly" ]
+      } else {
+        deps = [ ":icudata" ]
+        sources += [
+          "../externals/icu/source/stubdata/stubdata.cpp",
+          "SkLoadICU.cpp",
+        ]
+      }
       public_defines += [
         "U_NOEXCEPT=",
         "U_STATIC_IMPLEMENTATION",
       ]
       libs = [ "Advapi32.lib" ]
-      sources += [
-        "../externals/icu/source/stubdata/stubdata.cpp",
-        "SkLoadICU.cpp",
-      ]
     } else {
       sources += [ "$data_assembly" ]
       deps = [ ":make_data_assembly" ]
