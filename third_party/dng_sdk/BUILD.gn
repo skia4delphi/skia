@@ -9,10 +9,18 @@ declare_args() {
 
 import("../third_party.gni")
 
+# DNG SDK for Windows supports only C++14.
+config("dng_cpp") {
+  if (is_win) {
+    cflags_cc = [ "/std:c++14" ]
+  }
+}
+
 third_party("dng_sdk") {
   public_include_dirs = [ "../externals/dng_sdk/source" ]
 
   configs = [
+    ":dng_cpp",
     "//gn/portable:add_exceptions",
     "//gn/portable:add_rtti",
   ]
