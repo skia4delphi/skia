@@ -169,7 +169,7 @@ declare_args() {
   skia_enable_fontmgr_win_gdi = is_win && !skia_enable_winuwp
   skia_enable_fontmgr_FontConfigInterface =
       skia_use_freetype && skia_use_fontconfig
-  skia_enable_spirv_validation = is_skia_dev_build && is_debug && !skia_use_dawn
+  skia_enable_spirv_validation = is_skia_dev_build && is_debug && !skia_use_dawn && !is_mingw
   skia_use_dng_sdk =
       !is_fuchsia && !is_wasm && skia_use_libjpeg_turbo_decode && skia_use_zlib
   skia_enable_vulkan_debug_layers = skia_enable_gpu_debug_layers

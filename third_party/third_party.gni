@@ -15,7 +15,7 @@ template("third_party_config") {
       cflags = []
       if (is_win) {
         include_dirs = invoker.include_dirs
-        if (is_clang) {
+        if (is_clang && !is_mingw) {
           foreach(dir, invoker.include_dirs) {
             cflags += [
               "/imsvc",
@@ -92,7 +92,7 @@ template("third_party") {
       if (!defined(cflags)) {
         cflags = []
       }
-      if (is_win) {
+      if (is_win && !is_mingw) {
         cflags += [ "/w" ]
       } else {
         cflags += [ "-w" ]

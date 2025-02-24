@@ -162,6 +162,10 @@ template <typename T> static constexpr size_t sk_digits_in() {
     return static_cast<size_t>(std::numeric_limits<T>::digits10 + 1);
 }
 
+#ifdef __MINGW32__
+const GUID __declspec(selectany) CLSID_XpsOMThumbnailGenerator = { 0x7e4a23e2, 0xb969, 0x4761, { 0xbe, 0x35, 0x1a, 0x8c, 0xed, 0x58, 0xe3, 0x23 } };
+#endif
+
 HRESULT SkXPSDevice::createXpsThumbnail(IXpsOMPage* page,
                                         const unsigned int pageNum,
                                         IXpsOMImageResource** image) {
@@ -323,7 +327,11 @@ bool SkXPSDevice::endSheet() {
     return true;
 }
 
+#ifdef __MINGW32__
+HRESULT subset_typeface(const SkXPSDevice::TypefaceUse& current) {
+#else
 static HRESULT subset_typeface(const SkXPSDevice::TypefaceUse& current) {
+#endif
     //The CreateFontPackage API is only supported on desktop, not in UWP
     #if defined(SK_WINUWP)
     return E_NOTIMPL;

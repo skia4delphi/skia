@@ -29,6 +29,16 @@ declare_args() {
     cflags = "--sysroot=" +
              rebase_path("$fuchsia_toolchain_path/$target_cpu/sysroot")
     link = rebase_path("$fuchsia_toolchain_path/bin/ld.lld")
+  } else if (is_mingw) {
+    if (host_os == "win") {
+      target_ar = "$win_mingw/bin/$mingw_target-llvm-ar.exe"
+      target_cc = "$win_mingw/bin/$mingw_target-clang.exe"
+      target_cxx = "$win_mingw/bin/$mingw_target-clang++.exe"
+    } else {
+      target_ar = "$win_mingw/bin/$mingw_target-llvm-ar"
+      target_cc = "$win_mingw/bin/$mingw_target-clang"
+      target_cxx = "$win_mingw/bin/$mingw_target-clang++"
+    }
   } else {
     target_ar = ar
     target_cc = cc
@@ -351,6 +361,8 @@ template("gcc_like_toolchain") {
       rpath = "-Wl,-soname,$soname"
       if (is_mac || is_ios) {
         rpath = "-Wl,-install_name,@rpath/$soname"
+      } else if (is_mingw) {
+        rpath = ""
       }
 
       rspfile = "{{output}}.rsp"
@@ -374,6 +386,8 @@ template("gcc_like_toolchain") {
       output_prefix = "lib"
       if (is_mac || is_ios) {
         default_output_extension = ".dylib"
+      } else if (is_mingw) {
+        default_output_extension = ".dll"
       } else {
         default_output_extension = ".so"
       }

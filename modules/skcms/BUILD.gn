@@ -33,7 +33,7 @@ template("arch") {
 arch("skcms_TransformHsw") {
   enabled = current_cpu == "x64" && target_os != "android"
   sources = skcms_TransformHsw
-  if (is_win) {
+  if (is_win && !is_mingw) {
     if (is_clang) {
       cflags = [
         "/clang:-mavx2",
@@ -55,7 +55,7 @@ arch("skcms_TransformHsw") {
 arch("skcms_TransformSkx") {
   enabled = current_cpu == "x64" && target_os != "android"
   sources = skcms_TransformSkx
-  if (is_win) {
+  if (is_win && !is_mingw) {
     if (is_clang) {
       cflags = [
         "/clang:-mavx512f",

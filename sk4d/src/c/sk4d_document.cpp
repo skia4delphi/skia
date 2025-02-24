@@ -18,23 +18,27 @@
 #include "src/c/sk4d_mapping.h"
 
 #ifdef SK_SUPPORT_XPS
-    static IXpsOMObjectFactory* g_xps_factory = nullptr;
+#ifdef __MINGW32__
+const GUID __declspec(selectany) CLSID_XpsOMObjectFactory = { 0xe974d26d, 0x3d9b, 0x4d47, { 0x88, 0xcc, 0x38, 0x72, 0xf2, 0xdc, 0x35, 0x85 } };
+#endif
 
-    static void destroy_xps_factory(void) {
-        if (g_xps_factory)
-            g_xps_factory->Release();
-    }
+static IXpsOMObjectFactory* g_xps_factory = nullptr;
 
-    static void create_xps_factory(IXpsOMObjectFactory** factory) {
-        if (SUCCEEDED(CoCreateInstance(CLSID_XpsOMObjectFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(factory))))
-            atexit(destroy_xps_factory);
-    }
+static void destroy_xps_factory(void) {
+    if (g_xps_factory)
+        g_xps_factory->Release();
+}
 
-    static IXpsOMObjectFactory* get_xps_factory(void) {
-        static std::once_flag flag;
-        std::call_once(flag, create_xps_factory, &g_xps_factory);
-        return g_xps_factory;
-    }
+static void create_xps_factory(IXpsOMObjectFactory** factory) {
+    if (SUCCEEDED(CoCreateInstance(CLSID_XpsOMObjectFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(factory))))
+        atexit(destroy_xps_factory);
+}
+
+static IXpsOMObjectFactory* get_xps_factory(void) {
+    static std::once_flag flag;
+    std::call_once(flag, create_xps_factory, &g_xps_factory);
+    return g_xps_factory;
+}
 #endif
 
 sk_canvas_t* sk4d_document_begin_page(sk_document_t* self, float width, float height, const sk_rect_t* content) {

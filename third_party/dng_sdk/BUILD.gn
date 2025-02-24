@@ -12,7 +12,11 @@ import("../third_party.gni")
 # DNG SDK for Windows supports only C++14.
 config("dng_cpp") {
   if (is_win) {
-    cflags_cc = [ "/std:c++14" ]
+    if (!is_mingw) {
+      cflags_cc = [ "/std:c++14" ]
+    } else {
+      cflags_cc = [ "-std=c++14" ]
+    }
   }
 }
 

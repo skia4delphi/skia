@@ -170,7 +170,7 @@ is_loong64 = current_cpu == "loong64"
 opts("hsw") {
   enabled = is_x86
   sources = skia_opts.hsw_sources
-  if (is_win) {
+  if (is_win && !is_mingw) {
     cflags = [ "/arch:AVX2" ]
   } else {
     cflags = [ "-march=haswell" ]
@@ -180,7 +180,7 @@ opts("hsw") {
 opts("skx") {
   enabled = is_x86
   sources = skia_opts.skx_sources
-  if (is_win) {
+  if (is_win && !is_mingw) {
     cflags = [ "/arch:AVX512" ]
   } else {
     cflags = [ "-march=skylake-avx512" ]
@@ -491,7 +491,11 @@ optional("fontmgr_win_gdi") {
   public_defines = [ "SK_FONTMGR_GDI_AVAILABLE" ]
   public = skia_ports_windows_fonts_public
   sources = skia_ports_fonthost_win_sources
-  libs = [ "Gdi32.lib" ]
+  if (!is_mingw) {
+    libs = [ "Gdi32.lib" ]
+  } else {
+    libs = [ "Gdi32" ]
+  }
 }
 
 if (skia_lex) {
@@ -1027,7 +1031,11 @@ optional("gpu") {
         "src/gpu/ganesh/gl/win/GrGLMakeWinInterface.cpp",
       ]
       if (target_cpu != "arm64" || skia_link_gl_winarm) {
-        libs += [ "OpenGL32.lib" ]
+        if (!is_mingw) {
+          libs += [ "OpenGL32.lib" ]
+        } else {
+          libs += [ "OpenGL32" ]
+        }
       }
     } else {
       sources += [ "src/gpu/ganesh/gl/GrGLMakeNativeInterface_none.cpp" ]
@@ -1672,17 +1680,33 @@ skia_component("skia") {
                  "src/ports/SkDebug_win.cpp",
                  "src/ports/SkImageGeneratorWIC.cpp",
                ]
-    libs += [
-      "Ole32.lib",
-      "OleAut32.lib",
-    ]
+    if (!is_mingw) {
+      libs += [
+        "Ole32.lib",
+        "OleAut32.lib",
+      ]
+    } else {
+      libs += [
+        "Ole32",
+        "OleAut32",
+        "Uuid",
+      ]
+    }
 
     if (!skia_enable_winuwp) {
-      libs += [
-        "FontSub.lib",
-        "User32.lib",
-        "Usp10.lib",
-      ]
+      if (!is_mingw) {
+        libs += [
+          "FontSub.lib",
+          "User32.lib",
+          "Usp10.lib",
+        ]
+      } else {
+        libs += [
+          "FontSub",
+          "User32",
+          "Usp10",
+        ]
+      }
     }
   } else {
     sources += [ "src/ports/SkOSFile_posix.cpp" ]
@@ -1942,7 +1966,7 @@ if (skia_enable_tools) {
   }
 
   config("cpp17") {
-    if (is_win) {
+    if (is_win && !is_mingw) {
       cflags_cc = [ "/std:c++17" ]
     } else {
       cflags_cc = [ "-std=c++17" ]
@@ -2151,9 +2175,17 @@ if (skia_enable_tools) {
           "tools/gpu/gl/win/SkWGL.h",
           "tools/gpu/gl/win/SkWGL_win.cpp",
         ]
-        libs += [ "Gdi32.lib" ]
+        if (!is_mingw) {
+          libs += [ "Gdi32.lib" ]
+        } else {
+          libs += [ "Gdi32" ]
+        }
         if (target_cpu != "arm64" || skia_link_gl_winarm) {
-          libs += [ "OpenGL32.lib" ]
+          if (!is_mingw) {
+            libs += [ "OpenGL32.lib" ]
+          } else {
+            libs += [ "OpenGL32" ]
+          }
         }
       }
     }

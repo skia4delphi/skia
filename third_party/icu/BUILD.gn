@@ -110,7 +110,11 @@ if (skia_use_system_icu) {
         "U_NOEXCEPT=",
         "U_STATIC_IMPLEMENTATION",
       ]
-      libs = [ "Advapi32.lib" ]
+      if (!is_mingw) {
+        libs = [ "Advapi32.lib" ]
+      } else {
+        libs = [ "Advapi32" ]
+      }
     } else {
       sources += [ "$data_assembly" ]
       deps = [ ":make_data_assembly" ]

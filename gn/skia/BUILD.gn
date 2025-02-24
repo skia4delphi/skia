@@ -100,7 +100,7 @@ config("default") {
     asmflags += [ target_triple ]
   }
 
-  if (is_win) {
+  if (is_win && !is_mingw) {
     if (is_clang && current_cpu == "arm64") {
       cflags += [ "--target=arm64-windows" ]
     }
@@ -430,14 +430,14 @@ config("warnings") {
   cflags_objcc = []
 
   if (werror) {
-    if (is_win) {
+    if (is_win && !is_mingw) {
       cflags += [ "/WX" ]
     } else {
       cflags += [ "-Werror" ]
     }
   }
 
-  if (is_win) {
+  if (is_win && !is_mingw) {
     cflags += [
       "/W3",  # Turn on lots of warnings.
 
@@ -487,6 +487,16 @@ config("warnings") {
       "-Wno-switch-default",  # Warns even when all enum values are covered
       "-Wno-unused-parameter",  # Re-enabled for header sources
     ]
+    if (is_win) {
+      cflags += [
+        "-Wno-extra-semi-stmt",
+        "-Wno-suggest-destructor-override",
+        "-Wno-suggest-override",
+        "-Wno-tautological-type-limit-compare",
+        "-Wno-unknown-pragmas",
+        "-Wno-unused-template",
+      ]
+    }
     cflags_cc += [
       "-Wnon-virtual-dtor",
       "-Wno-noexcept-type",
@@ -621,7 +631,6 @@ config("warnings") {
       "-Wdeprecated-attributes",
       "-Wdeprecated-comma-subscript",
       "-Wdeprecated-copy",
-      "-Wdeprecated-copy-dtor",
 
       #"-Wdeprecated-declarations",
       "-Wdeprecated-dynamic-exception-spec",
@@ -636,6 +645,10 @@ config("warnings") {
       "-Wdeprecated-writable-str",
       "-Wextra-semi",
     ]
+
+    if (!is_mingw) {
+      cflags += [ "-Wdeprecated-copy-dtor" ]
+    }
   }
 
   # !is_clang is a proxy for gcc.
@@ -683,7 +696,7 @@ config("debug_symbols") {
       "-gline-tables-only",
       "-funwind-tables",  # Helps make in-process backtraces fuller.
     ]
-  } else if (is_win) {
+  } else if (is_win && !is_mingw) {
     cflags = [ "/Z7" ]
     if (is_clang) {
       cflags += [ "-gcodeview-ghash" ]
@@ -692,16 +705,20 @@ config("debug_symbols") {
       ldflags = [ "/DEBUG:FASTLINK" ]
     }
   } else {
-    cflags = [
-      "-g",
-      "-gdwarf-4",  # older versions of addr2line do not work well with v5
-    ]
+    cflags = [ "-g" ]
+    if (!is_win) {
+      # older versions of addr2line do not work well with v5
+      cflags += [ "-gdwarf-4" ]
+    } else {
+      cflags += [ "-gcodeview" ]
+      ldflags = [ "-Wl,--pdb=" ]
+    }
   }
 }
 
 config("no_rtti") {
   if (sanitize != "ASAN") {  # -fsanitize=vptr requires RTTI
-    if (is_win) {
+    if (is_win && !is_mingw) {
       cflags_cc = [ "/GR-" ]
     } else {
       cflags_cc = [ "-fno-rtti" ]
@@ -712,7 +729,7 @@ config("no_rtti") {
 
 config("optimize") {
   ldflags = []
-  if (is_win) {
+  if (is_win && !is_mingw) {
     cflags = [
       "/O2",
       "/Zc:inline",
