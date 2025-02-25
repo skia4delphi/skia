@@ -144,7 +144,8 @@ SK_API sk_sp<SkSurface> WrapPixels(const SkImageInfo& imageInfo,
                                    size_t rowBytes,
                                    PixelsReleaseProc,
                                    void* context,
-                                   const SkSurfaceProps* surfaceProps = nullptr);
+                                   const SkSurfaceProps* surfaceProps = nullptr,
+                                   bool IgnoreRowMaxSize = false);
 }  // namespace SkSurfaces
 
 /** \class SkSurface

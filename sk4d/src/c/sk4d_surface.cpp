@@ -92,7 +92,7 @@ sk_surface_t* sk4d_surface_make_raster_direct(const sk_pixmap_t* pixmap, sk_surf
     SkSurfaceProps surface_props;
     if (props)
         SkSurfaceProps surface_props = AsSurfaceProps(props);
-    return ToSurface(SkSurfaces::WrapPixels(AsPixmap(pixmap)->info(), AsPixmap(pixmap)->writable_addr(), AsPixmap(pixmap)->rowBytes(), proc, proc_context, (props) ? &surface_props : nullptr).release());
+    return ToSurface(SkSurfaces::WrapPixels(AsPixmap(pixmap)->info(), AsPixmap(pixmap)->writable_addr(), AsPixmap(pixmap)->rowBytes(), proc, proc_context, (props) ? &surface_props : nullptr, true).release());
 }
 
 sk_surface_t* sk4d_surface_make_render_target(gr_directcontext_t* context, bool is_budgeted, const sk_imageinfo_t *image_info, int32_t sample_count, gr_surfaceorigin_t origin, const sk_surfaceprops_t* props, bool should_create_with_mips) {

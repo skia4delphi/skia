@@ -162,11 +162,16 @@ sk_sp<SkSurface> WrapPixels(const SkImageInfo& info,
                             size_t rowBytes,
                             PixelsReleaseProc releaseProc,
                             void* context,
-                            const SkSurfaceProps* props) {
+                            const SkSurfaceProps* props,
+                            bool IgnoreRowMaxSize) {
     if (nullptr == releaseProc) {
         context = nullptr;
     }
-    if (!SkSurfaceValidateRasterInfo(info, rowBytes)) {
+    if (!IgnoreRowMaxSize) {
+      if (!SkSurfaceValidateRasterInfo(info, rowBytes))
+        return nullptr;
+    } else {
+      if (!SkImageInfoIsValid(info) || !info.validRowBytes(rowBytes))
         return nullptr;
     }
     if (nullptr == pixels) {
