@@ -122,7 +122,7 @@ sk_typeface_t* sk4d_font_get_typeface(const sk_font_t* self) {
 sk_typeface_t* sk4d_font_get_typeface_or_default(const sk_font_t* self) {
     auto r = AsFont(self)->refTypeface();
     if (!r)
-      r = SkTypefaceRefDefault();
+      r = Sk4DComp::MakeDefaultTypeface();
     return ToTypeface(r.release());
 }
 

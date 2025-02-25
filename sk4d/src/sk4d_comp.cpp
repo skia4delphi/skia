@@ -28,7 +28,19 @@
     #endif
 #endif
 
-sk_sp<SkFontMgr> SkFontMgrRefDefault() {
+#if defined(SK_UNICODE_ICU_IMPLEMENTATION)
+#include "modules/skunicode/include/SkUnicode_icu.h"
+#endif
+
+#if defined(SK_UNICODE_LIBGRAPHEME_IMPLEMENTATION)
+#include "modules/skunicode/include/SkUnicode_libgrapheme.h"
+#endif
+
+#if defined(SK_UNICODE_ICU4X_IMPLEMENTATION)
+#include "modules/skunicode/include/SkUnicode_icu4x.h"
+#endif
+
+sk_sp<SkFontMgr> Sk4DComp::FontMgrRefDefault() {
     static std::once_flag once;
     static sk_sp<SkFontMgr> singleton;
     std::call_once(once, []{
@@ -47,31 +59,22 @@ sk_sp<SkFontMgr> SkFontMgrRefDefault() {
     return singleton;
 }
 
-sk_sp<SkTypeface> SkTypefaceRefDefault() {
+static SkTypeface* GetDefaultTypeface() {
     static std::once_flag once;
     static sk_sp<SkTypeface> singleton;
     std::call_once(once, []{
-        auto t = SkFontMgrRefDefault()->legacyMakeTypeface(nullptr, SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width, SkFontStyle::kUpright_Slant));
+        sk_sp<SkFontMgr> fm(Sk4DComp::FontMgrRefDefault());
+        auto t = fm->legacyMakeTypeface(nullptr, SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width, SkFontStyle::kUpright_Slant));
         singleton = t ? t : SkTypeface::MakeEmpty();
     });
-    return singleton;
+    return singleton.get();
 }
 
-// -----------------------------------------------------------------------------
+sk_sp<SkTypeface> Sk4DComp::MakeDefaultTypeface() {
+    return sk_ref_sp(GetDefaultTypeface());
+}
 
-#if defined(SK_UNICODE_ICU_IMPLEMENTATION)
-#include "modules/skunicode/include/SkUnicode_icu.h"
-#endif
-
-#if defined(SK_UNICODE_LIBGRAPHEME_IMPLEMENTATION)
-#include "modules/skunicode/include/SkUnicode_libgrapheme.h"
-#endif
-
-#if defined(SK_UNICODE_ICU4X_IMPLEMENTATION)
-#include "modules/skunicode/include/SkUnicode_icu4x.h"
-#endif
-
-sk_sp<SkUnicode> SkUnicodeMake() {
+sk_sp<SkUnicode> Sk4DComp::UnicodeMake() {
 #if defined(SK_UNICODE_ICU_IMPLEMENTATION)
     if (auto unicode = SkUnicodes::ICU::Make()) {
         return unicode;

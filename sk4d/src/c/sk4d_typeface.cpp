@@ -32,12 +32,12 @@ int32_t sk4d_typeface_get_width(const sk_typeface_t* self) {
 }
 
 sk_typeface_t* sk4d_typeface_make_default(void) {
-    return ToTypeface(SkTypefaceRefDefault().release());
+    return ToTypeface(Sk4DComp::MakeDefaultTypeface().release());
 }
 
 // DEPRECATED
 sk_typeface_t* sk4d_typeface_make_from_file(const char file_name[], int32_t ttc_index) {
-    return ToTypeface(SkFontMgrRefDefault()->makeFromFile(file_name, ttc_index).release());
+    return ToTypeface(Sk4DComp::FontMgrRefDefault()->makeFromFile(file_name, ttc_index).release());
 }
 
 // DEPRECATED
@@ -47,10 +47,10 @@ sk_typeface_t* sk4d_typeface_make_from_stream(sk_stream_t* stream, int32_t ttc_i
     auto data = SkData::MakeFromStream(AsStream(stream), AsStream(stream)->getLength());
     if (!data)
         return nullptr;
-    return ToTypeface(SkFontMgrRefDefault()->makeFromData(data, ttc_index).release());
+    return ToTypeface(Sk4DComp::FontMgrRefDefault()->makeFromData(data, ttc_index).release());
 }
 
 // DEPRECATED
 sk_typeface_t* sk4d_typeface_make_from_name(const char family_name[], const sk_fontstyle_t* style) {
-    return ToTypeface(SkFontMgrRefDefault()->matchFamilyStyle(family_name, SkFontStyle::Normal()).release());
+    return ToTypeface(Sk4DComp::FontMgrRefDefault()->matchFamilyStyle(family_name, SkFontStyle::Normal()).release());
 }

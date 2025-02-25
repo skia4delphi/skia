@@ -11,14 +11,14 @@
 
 #include "include/core/SkFontMgr.h"
 #include "include/core/SkTypeface.h"
-
-sk_sp<SkFontMgr> SkFontMgrRefDefault();
-sk_sp<SkTypeface> SkTypefaceRefDefault();
-
-//------------------------------------------------------------------------------
-
 #include "modules/skunicode/include/SkUnicode.h"
 
-sk_sp<SkUnicode> SkUnicodeMake();
+namespace Sk4DComp {
+
+sk_sp<SkFontMgr> FontMgrRefDefault();
+sk_sp<SkTypeface> MakeDefaultTypeface();
+sk_sp<SkUnicode> UnicodeMake();
+
+} // namespace Sk4DComp
 
 #endif

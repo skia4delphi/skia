@@ -10,7 +10,7 @@
 #include "modules/skunicode/src/sk4d_unicode_mapping.h"
 
 sk_unicode_t* sk4d_unicode_create(void) {
-    return ToUnicode(SkUnicodeMake().release());
+    return ToUnicode(Sk4DComp::UnicodeMake().release());
 }
 
 void sk4d_unicode_destroy(sk_unicode_t* self) {
