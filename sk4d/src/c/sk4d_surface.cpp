@@ -26,15 +26,16 @@ void sk4d_surface_flush(sk_surface_t* self) {
 // DEPRECATED
 void sk4d_surface_flush_and_submit(sk_surface_t* self, gr_backendsemaphore_t* semaphores[], int32_t count, const gr_backendsurfacemutablestate_t* new_state, bool sync_cpu) {
     SK4D_ONLY_GPU(
-        GrFlushInfo info;
-        std::vector<GrBackendSemaphore> vector;
-        vector.reserve(count);
-        for (size_t i = 0; i < count; i++)
-            vector.emplace_back(*AsGrBackendSemaphore(semaphores[i]));
-        info.fNumSemaphores = count;
-        info.fSignalSemaphores = vector.data();
         auto direct = AsSurface(self)->recordingContext()->asDirectContext();
         if (direct) {
+            GrFlushInfo info;
+            std::vector<GrBackendSemaphore> vector;
+            vector.reserve(count);
+            for (size_t i = 0; i < count; i++)
+                vector.emplace_back(*AsGrBackendSemaphore(semaphores[i]));
+            info.fNumSemaphores = count;
+            info.fSignalSemaphores = vector.data();
+
           direct->flush(AsSurface(self), info, AsGrBackendSurfaceMutableState(new_state));
           direct->submit(AsGrSyncCpu(sync_cpu));
         })
