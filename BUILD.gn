@@ -3658,7 +3658,11 @@ if (is_sk4d_build) {
     defines = [ "SK4D_IMPLEMENTATION=1" ]
     deps = [
       ":skia",
-      ":modules",
+      "modules/skottie",
+      "modules/skparagraph",
+      "modules/skshaper",
+      "modules/svg",
+      "modules/skunicode",
     ]
     public_configs = [ ":sk4d_public" ]
     public = [
