@@ -13,7 +13,7 @@
 #include "src/c/sk4d_mapping.h"
 
 sk_font_t* sk4d_font_create(sk_typeface_t* typeface, float size, float sx, float kx) {
-    return ToFont(new SkFont(sk_ref_sp(AsTypeface(typeface)), size, sx, kx));
+    return ToFont(new SkFont(typeface ? sk_ref_sp(AsTypeface(typeface)) : Sk4DComp::MakeDefaultTypeface(), size, sx, kx));
 }
 
 sk_font_t* sk4d_font_create2(const sk_font_t* font) {
