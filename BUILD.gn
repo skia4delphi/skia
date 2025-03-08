@@ -3827,7 +3827,9 @@ if (is_sk4d_build) {
         "sk4d/src/gpu/Gr4DContextOptions.cpp",
         "sk4d/src/gpu/Gr4DShaderErrorHandler.cpp",
       ]
-      if (skia_use_vulkan && is_win) {
+      # To ensure Vulkan headers are compatible with Skia, always use the ones
+      # provided with Skia.
+      if (skia_use_vulkan) {
         all_dependent_configs = [ ":use_skia_vulkan_headers" ]
       }
     }
