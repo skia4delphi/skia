@@ -110,10 +110,15 @@ std::vector<sk_sp<SkTypeface>> FontCollection::findTypefaces(const std::vector<S
 
     if (typefaces.empty()) {
         sk_sp<SkTypeface> match;
-        for (const SkString& familyName : fDefaultFamilyNames) {
-            match = matchTypeface(familyName, fontStyle);
-            if (match) {
-                break;
+        if (fDefaultFontManager && fEnableFontFallback) {
+            match = fDefaultFontManager->legacyMakeTypeface(nullptr, fontStyle);
+        }
+        if (!match) {
+            for (const SkString& familyName : fDefaultFamilyNames) {
+                match = matchTypeface(familyName, fontStyle);
+                if (match) {
+                    break;
+                }
             }
         }
         if (!match) {

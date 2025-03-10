@@ -10,9 +10,7 @@
 #include "modules/skparagraph/src/sk4d_paragraph_mapping.h"
 
 sk_typefacefontprovider_t* sk4d_typefacefontprovider_create(void) {
-    auto p = new skia::textlayout::TypefaceFontProvider();
-    p->registerTypeface(Sk4DComp::MakeDefaultTypeface());
-    return ToTypefaceFontProvider(p);
+    return ToTypefaceFontProvider(new skia::textlayout::TypefaceFontProvider());
 }
 
 void sk4d_typefacefontprovider_register_typeface(sk_typefacefontprovider_t* self, sk_typeface_t* typeface) {
