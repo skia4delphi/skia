@@ -18,16 +18,16 @@ void sk4d_surface_draw(sk_surface_t* self, sk_canvas_t* canvas, float x, float y
 // DEPRECATED
 void sk4d_surface_flush(sk_surface_t* self) {
     SK4D_ONLY_GPU(
-        auto direct = AsSurface(self)->recordingContext()->asDirectContext();
-        if (direct)
-        direct->flush(AsSurface(self));)
+        if (AsSurface(self)->recordingContext()) {
+            auto direct = AsSurface(self)->recordingContext()->asDirectContext();
+            direct->flush(AsSurface(self));
+        })
 }
 
 // DEPRECATED
 void sk4d_surface_flush_and_submit(sk_surface_t* self, gr_backendsemaphore_t* semaphores[], int32_t count, const gr_backendsurfacemutablestate_t* new_state, bool sync_cpu) {
     SK4D_ONLY_GPU(
-        auto direct = AsSurface(self)->recordingContext()->asDirectContext();
-        if (direct) {
+        if (AsSurface(self)->recordingContext()) {
             GrFlushInfo info;
             std::vector<GrBackendSemaphore> vector;
             vector.reserve(count);
@@ -36,8 +36,9 @@ void sk4d_surface_flush_and_submit(sk_surface_t* self, gr_backendsemaphore_t* se
             info.fNumSemaphores = count;
             info.fSignalSemaphores = vector.data();
 
-          direct->flush(AsSurface(self), info, AsGrBackendSurfaceMutableState(new_state));
-          direct->submit(AsGrSyncCpu(sync_cpu));
+            auto direct = AsSurface(self)->recordingContext()->asDirectContext();
+            direct->flush(AsSurface(self), info, AsGrBackendSurfaceMutableState(new_state));
+            direct->submit(AsGrSyncCpu(sync_cpu));
         })
 }
 
