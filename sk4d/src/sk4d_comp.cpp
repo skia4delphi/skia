@@ -3,30 +3,42 @@
 #include <mutex>
 #include "include/core/SkFontStyle.h"
 
-#ifdef SK_FONTMGR_FONTCONFIG_AVAILABLE
+#if defined(SK_BUILD_FOR_WIN) && (defined(SK_FONTMGR_GDI_AVAILABLE) || \
+                                  defined(SK_FONTMGR_DIRECTWRITE_AVAILABLE))
+#include "include/ports/SkTypeface_win.h"
+#elif defined(SK_BUILD_FOR_ANDROID) && \
+      defined(SK_FONTMGR_ANDROID_AVAILABLE) && \
+      defined(SK_TYPEFACE_FACTORY_FREETYPE)
+#include "include/ports/SkFontMgr_android.h"
+#include "include/ports/SkFontScanner_FreeType.h"
+#elif defined(SK_BUILD_FOR_ANDROID) && \
+      defined(SK_FONTMGR_ANDROID_NDK_AVAILABLE) && \
+      defined(SK_TYPEFACE_FACTORY_FREETYPE)
+#include "include/ports/SkFontMgr_android_ndk.h"
+#include "include/ports/SkFontScanner_FreeType.h"
+#elif defined(SK_FONTMGR_CORETEXT_AVAILABLE) && (defined(SK_BUILD_FOR_IOS) || \
+                                                 defined(SK_BUILD_FOR_MAC))
+#include "include/ports/SkFontMgr_mac_ct.h"
+#elif defined(SK_BUILD_FOR_UNIX) && \
+      defined(SK_FONTMGR_FONTCONFIG_AVAILABLE) && \
+      defined(SK_TYPEFACE_FACTORY_FREETYPE)
 #include "include/ports/SkFontMgr_fontconfig.h"
 #include "include/ports/SkFontScanner_FreeType.h"
-#endif
-
-#ifdef SK_FONTMGR_CORETEXT_AVAILABLE
-#include "include/ports/SkFontMgr_mac_ct.h"
-#endif
-
-#ifdef SK_FONTMGR_DIRECTWRITE_AVAILABLE
-#include "include/ports/SkTypeface_win.h"
-#endif
-
-#ifdef SK_FONTMGR_FREETYPE_DIRECTORY_AVAILABLE
+#elif defined(SK_FONTMGR_FREETYPE_DIRECTORY_AVAILABLE)
 #include "include/ports/SkFontMgr_directory.h"
+    #ifndef SK_FONT_FILE_PREFIX
+        #if defined(SK_BUILD_FOR_MAC) || defined(SK_BUILD_FOR_IOS)
+            #define SK_FONT_FILE_PREFIX "/System/Library/Fonts/"
+        #else
+            #define SK_FONT_FILE_PREFIX "/usr/share/fonts/"
+        #endif
+    #endif
+#elif defined(SK_FONTMGR_FREETYPE_EMPTY_AVAILABLE)
+#include "include/ports/SkFontMgr_empty.h"
+#elif defined(SK_FONTMGR_FONTATIONS_AVAILABLE)
+#include "include/ports/SkFontMgr_Fontations.h"
 #endif
 
-#ifndef SK_FONT_FILE_PREFIX
-    #if defined(SK_BUILD_FOR_MAC) || defined(SK_BUILD_FOR_IOS)
-        #define SK_FONT_FILE_PREFIX "/System/Library/Fonts/"
-    #else
-        #define SK_FONT_FILE_PREFIX "/usr/share/fonts/"
-    #endif
-#endif
 
 #if defined(SK_UNICODE_ICU_IMPLEMENTATION)
 #include "modules/skunicode/include/SkUnicode_icu.h"
@@ -44,14 +56,31 @@ sk_sp<SkFontMgr> Sk4DComp::FontMgrRefDefault() {
     static std::once_flag once;
     static sk_sp<SkFontMgr> singleton;
     std::call_once(once, []{
-#if defined(SK_FONTMGR_FONTCONFIG_AVAILABLE)
-        singleton = SkFontMgr_New_FontConfig(nullptr, SkFontScanner_Make_FreeType());
-#elif defined(SK_FONTMGR_CORETEXT_AVAILABLE)
-        singleton = SkFontMgr_New_CoreText(nullptr);
-#elif defined(SK_FONTMGR_DIRECTWRITE_AVAILABLE)
+#if defined(SK_BUILD_FOR_WIN) && defined(SK_FONTMGR_DIRECTWRITE_AVAILABLE)
         singleton = SkFontMgr_New_DirectWrite();
+#elif defined(SK_BUILD_FOR_WIN) && defined(SK_FONTMGR_GDI_AVAILABLE)
+        singleton = SkFontMgr_New_GDI();
+#elif defined(SK_BUILD_FOR_ANDROID) && \
+      defined(SK_FONTMGR_ANDROID_AVAILABLE) && \
+      defined(SK_TYPEFACE_FACTORY_FREETYPE)
+        singleton = SkFontMgr_New_Android(nullptr, SkFontScanner_Make_FreeType());
+#elif defined(SK_BUILD_FOR_ANDROID) && \
+      defined(SK_FONTMGR_ANDROID_NDK_AVAILABLE) && \
+      defined(SK_TYPEFACE_FACTORY_FREETYPE)
+        singleton = SkFontMgr_New_AndroidNDK(false, SkFontScanner_Make_FreeType());
+#elif defined(SK_FONTMGR_CORETEXT_AVAILABLE) && (defined(SK_BUILD_FOR_IOS) || \
+                                                 defined(SK_BUILD_FOR_MAC))
+        singleton = SkFontMgr_New_CoreText(nullptr);
+#elif defined(SK_BUILD_FOR_UNIX) && \
+      defined(SK_FONTMGR_FONTCONFIG_AVAILABLE) && \
+      defined(SK_TYPEFACE_FACTORY_FREETYPE)
+        singleton = SkFontMgr_New_FontConfig(nullptr, SkFontScanner_Make_FreeType());
 #elif defined(SK_FONTMGR_FREETYPE_DIRECTORY_AVAILABLE)
         singleton = SkFontMgr_New_Custom_Directory(SK_FONT_FILE_PREFIX);
+#elif defined(SK_FONTMGR_FREETYPE_EMPTY_AVAILABLE)
+        singleton = SkFontMgr_New_Custom_Empty();
+#elif defined(SK_FONTMGR_FONTATIONS_AVAILABLE)
+        singleton = SkFontMgr_New_Fontations_Empty();
 #else
         singleton = SkFontMgr::RefEmpty();
 #endif
