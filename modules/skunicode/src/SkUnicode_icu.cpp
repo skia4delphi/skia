@@ -47,11 +47,7 @@
 using namespace skia_private;
 
 const SkICULib* SkGetICULib() {
-    static std::unique_ptr<SkICULib> gICU;
-    static SkOnce once;
-    once([&] {
-      gICU = SkLoadICULib();
-    });
+    static const auto gICU = SkLoadICULib();
     return gICU.get();
 }
 
