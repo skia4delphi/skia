@@ -86,10 +86,9 @@ extern "C" {
 #define SAFE_FIXED_SIZE(type) ((uint64_t)offsetof(type, variable))
 
 // If this isn't Clang, GCC, or Emscripten with SIMD support, we are in SKCMS_PORTABLE mode.
-#if !defined(SKCMS_PORTABLE) && (defined(__MINGW32__) || \
-                                 !(defined(__clang__) || \
-                                   defined(__GNUC__) || \
-                                   (defined(__EMSCRIPTEN__) && defined(__wasm_simd128__))))
+#if !defined(SKCMS_PORTABLE) && !(defined(__clang__) || \
+                                  defined(__GNUC__) || \
+                                  (defined(__EMSCRIPTEN__) && defined(__wasm_simd128__)))
     #define SKCMS_PORTABLE 1
 #endif
 
