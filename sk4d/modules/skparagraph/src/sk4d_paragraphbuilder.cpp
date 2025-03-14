@@ -26,7 +26,7 @@ sk_paragraph_t* sk4d_paragraphbuilder_build(sk_paragraphbuilder_t* self) {
 sk_paragraphbuilder_t* sk4d_paragraphbuilder_create(const sk_paragraphstyle_t* paragraph_style) {
     auto fontCollection = sk_make_sp<skia::textlayout::FontCollection>();
     fontCollection->setDefaultFontManager(Sk4DComp::FontMgrRefDefault());
-    return ToParagraphBuilder(skia::textlayout::ParagraphBuilder::make(AsParagraphStyle(*paragraph_style), fontCollection).release());
+    return ToParagraphBuilder(skia::textlayout::ParagraphBuilder::make(AsParagraphStyle(*paragraph_style), fontCollection, Sk4DComp::UnicodeMake()).release());
 
 }
 
@@ -35,7 +35,7 @@ sk_paragraphbuilder_t* sk4d_paragraphbuilder_create2(const sk_paragraphstyle_t* 
     if (enable_font_fallback)
         fontCollection->setDefaultFontManager(Sk4DComp::FontMgrRefDefault());
     fontCollection->setAssetFontManager(sk_ref_sp(AsFontMgr(font_provider)));
-    return ToParagraphBuilder(skia::textlayout::ParagraphBuilder::make(AsParagraphStyle(*paragraph_style), fontCollection).release());
+    return ToParagraphBuilder(skia::textlayout::ParagraphBuilder::make(AsParagraphStyle(*paragraph_style), fontCollection, Sk4DComp::UnicodeMake()).release());
 }
 
 void sk4d_paragraphbuilder_destroy(sk_paragraphbuilder_t* self) {
