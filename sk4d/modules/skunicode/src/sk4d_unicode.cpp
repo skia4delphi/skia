@@ -14,7 +14,7 @@ sk_unicode_t* sk4d_unicode_create(void) {
 }
 
 void sk4d_unicode_destroy(sk_unicode_t* self) {
-    AsUnicode(self)->unref();
+    delete AsUnicode(self);
 }
 
 void sk4d_unicode_for_each_bidi_region(sk_unicode_t* self, const uint16_t utf16_text[], int32_t utf16_units, sk_direction_t direction, sk_unicode_bidi_region_proc proc, void* context) {
