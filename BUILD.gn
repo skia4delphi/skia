@@ -172,7 +172,7 @@ opts("hsw") {
   sources = skia_opts.hsw_sources
   if (is_win && !is_mingw) {
     cflags = [ "/arch:AVX2" ]
-  } else {
+  } else if (!is_win || !is_sk4d_build) {
     cflags = [ "-march=haswell" ]
   }
 }
@@ -182,7 +182,7 @@ opts("skx") {
   sources = skia_opts.skx_sources
   if (is_win && !is_mingw) {
     cflags = [ "/arch:AVX512" ]
-  } else {
+  } else if (!is_win || !is_sk4d_build) {
     cflags = [ "-march=skylake-avx512" ]
   }
 }
