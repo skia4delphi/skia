@@ -9,8 +9,10 @@
 #include <utility>
 
 #include "src/utils/SkOSPath.h"
+#include "src/sk4d_comp.h"
 #include "modules/svg/include/sk4d_svgdom.h"
 #include "modules/skresources/src/sk4d_resources_mapping.h"
+#include "modules/skshaper/utils/FactoryHelpers.h"
 #include "modules/svg/src/sk4d_svg_mapping.h"
 
 sk_svgnode_t* sk4d_svgdom_find_node_by_id(sk_svgdom_t* self, const char id[]) {
@@ -27,12 +29,14 @@ sk_svgdom_t* sk4d_svgdom_make_from_file(const char file_name[], sk_fontmgr_t* fo
     if (!stream)
         return nullptr;
     auto rp = skresources::DataURIResourceProviderProxy::Make(skresources::FileResourceProvider::Make(SkOSPath::Dirname(file_name), skresources::ImageDecodeStrategy::kPreDecode), skresources::ImageDecodeStrategy::kPreDecode);
-    return ToSVGDOM(SkSVGDOM::Builder().setResourceProvider(std::move(rp)).setFontManager(sk_ref_sp(AsFontMgr(font_provider))).make(*stream).release());
+    return ToSVGDOM(SkSVGDOM::Builder().setResourceProvider(std::move(rp)).setFontManager(Sk4DComp::CustomFontMgrWithSystemFonts(sk_ref_sp(AsFontMgr(font_provider))))
+                    .setTextShapingFactory(SkShapers::BestAvailable()).make(*stream).release());
 }
 
 sk_svgdom_t* sk4d_svgdom_make_from_stream(sk_stream_t* stream, sk_resourceprovider_t* resource_provider, sk_fontmgr_t* font_provider) {
     auto rp = skresources::DataURIResourceProviderProxy::Make(sk_ref_sp(AsResourceProvider(resource_provider)), skresources::ImageDecodeStrategy::kPreDecode);
-    return ToSVGDOM(SkSVGDOM::Builder().setResourceProvider(std::move(rp)).setFontManager(sk_ref_sp(AsFontMgr(font_provider))).make(AsStream(*stream)).release());
+    return ToSVGDOM(SkSVGDOM::Builder().setResourceProvider(std::move(rp)).setFontManager(Sk4DComp::CustomFontMgrWithSystemFonts(sk_ref_sp(AsFontMgr(font_provider))))
+                    .setTextShapingFactory(SkShapers::BestAvailable()).make(AsStream(*stream)).release());
 }
 
 void sk4d_svgdom_render(const sk_svgdom_t* self, sk_canvas_t* canvas) {

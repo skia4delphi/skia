@@ -8,10 +8,12 @@
 
 #include <utility>
 
+#include "src/sk4d_comp.h"
 #include "src/utils/SkOSPath.h"
 #include "modules/skottie/include/sk4d_skottie.h"
 #include "modules/skottie/src/sk4d_skottie_mapping.h"
 #include "modules/skresources/src/sk4d_resources_mapping.h"
+#include "modules/skshaper/utils/FactoryHelpers.h"
 
 double sk4d_skottieanimation_get_duration(const sk_skottieanimation_t* self) {
     return AsSkottieAnimation(self)->duration();
@@ -42,12 +44,14 @@ sk_skottieanimation_t* sk4d_skottieanimation_make_from_file(const char file_name
     if (!stream)
         return nullptr;
     auto rp = skresources::DataURIResourceProviderProxy::Make(skresources::FileResourceProvider::Make(SkOSPath::Dirname(file_name), skresources::ImageDecodeStrategy::kPreDecode), skresources::ImageDecodeStrategy::kPreDecode);
-    return ToSkottieAnimation(skottie::Animation::Builder().setResourceProvider(std::move(rp)).setFontManager(sk_ref_sp(AsFontMgr(font_provider))).make(stream.get()).release());
+    return ToSkottieAnimation(skottie::Animation::Builder().setResourceProvider(std::move(rp)).setFontManager(Sk4DComp::CustomFontMgrWithSystemFonts(sk_ref_sp(AsFontMgr(font_provider))))
+                              .setTextShapingFactory(SkShapers::BestAvailable()).make(stream.get()).release());
 }
 
 sk_skottieanimation_t* sk4d_skottieanimation_make_from_stream(sk_stream_t* stream, sk_resourceprovider_t* resource_provider, sk_fontmgr_t* font_provider) {
     auto rp = skresources::DataURIResourceProviderProxy::Make(sk_ref_sp(AsResourceProvider(resource_provider)), skresources::ImageDecodeStrategy::kPreDecode);
-    return ToSkottieAnimation(skottie::Animation::Builder().setResourceProvider(std::move(rp)).setFontManager(sk_ref_sp(AsFontMgr(font_provider))).make(AsStream(stream)).release());
+    return ToSkottieAnimation(skottie::Animation::Builder().setResourceProvider(std::move(rp)).setFontManager(Sk4DComp::CustomFontMgrWithSystemFonts(sk_ref_sp(AsFontMgr(font_provider))))
+                              .setTextShapingFactory(SkShapers::BestAvailable()).make(AsStream(stream)).release());
 }
 
 void sk4d_skottieanimation_ref(const sk_skottieanimation_t* self) {

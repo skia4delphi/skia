@@ -2,6 +2,7 @@
 
 #include <mutex>
 #include "include/core/SkFontStyle.h"
+#include "include/utils/SkOrderedFontMgr.h"
 
 #if defined(SK_BUILD_FOR_WIN) && (defined(SK_FONTMGR_GDI_AVAILABLE) || \
                                   defined(SK_FONTMGR_DIRECTWRITE_AVAILABLE))
@@ -51,6 +52,17 @@
 #if defined(SK_UNICODE_ICU4X_IMPLEMENTATION)
 #include "modules/skunicode/include/SkUnicode_icu4x.h"
 #endif
+
+sk_sp<SkFontMgr>
+Sk4DComp::CustomFontMgrWithSystemFonts(sk_sp<SkFontMgr> customFontManager) {
+    if (customFontManager) {
+        sk_sp<SkOrderedFontMgr> result(new SkOrderedFontMgr);
+        result->append(Sk4DComp::FontMgrRefDefault());
+        result->append(customFontManager);
+        return result;
+    }
+    return Sk4DComp::FontMgrRefDefault();
+}
 
 sk_sp<SkFontMgr> Sk4DComp::FontMgrRefDefault() {
     static std::once_flag once;

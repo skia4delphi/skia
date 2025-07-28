@@ -15,6 +15,7 @@
 
 namespace Sk4DComp {
 
+sk_sp<SkFontMgr> CustomFontMgrWithSystemFonts(sk_sp<SkFontMgr> customFontManager);
 sk_sp<SkFontMgr> FontMgrRefDefault();
 sk_sp<SkTypeface> MakeDefaultTypeface();
 sk_sp<SkUnicode> UnicodeMake();
