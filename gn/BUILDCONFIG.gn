@@ -45,6 +45,8 @@ declare_args() {
 
   # llvm-mingw directory
   win_mingw = ""
+
+  is_arm64ec = false
 }
 declare_args() {
   is_debug = !is_official_build

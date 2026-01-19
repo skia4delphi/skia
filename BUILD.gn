@@ -1074,6 +1074,11 @@ optional("gpu") {
     ]
   }
 
+  cflags_cc = []
+  if (is_clang) {
+    cflags_cc += [ "-Wno-nontrivial-memcall" ]
+  }
+
   cflags_objcc = []
   if (skia_use_metal) {
     public_defines += [ "SK_METAL" ]

@@ -127,8 +127,13 @@ template("msvc_toolchain") {
       }
       if (host_os == "win") {
         cl = "\"$clang_win/bin/clang-cl.exe\""
-        lib = "\"$clang_win/bin/lld-link.exe\" /lib"
-        link = "\"$clang_win/bin/lld-link.exe\""
+        if (is_arm64ec) {
+          lib = "\"$bin/lib.exe\""
+          link = "\"$bin/link.exe\""
+        } else {
+          lib = "\"$clang_win/bin/lld-link.exe\" /lib"
+          link = "\"$clang_win/bin/lld-link.exe\""
+        }
       } else {
         cl = "\"$clang_win/bin/clang-cl\""
         lib = "\"$clang_win/bin/lld-link\" /lib"
@@ -156,8 +161,13 @@ template("msvc_toolchain") {
       precompiled_header_type = "msvc"
       pdbname = "{{target_out_dir}}/{{label_name}}_c.pdb"
 
+      _cc_extra_flags = ""
+      if (is_arm64ec) {
+        _cc_extra_flags = "/arm64EC"
+      }
+
       # Label names may have spaces so pdbname must be quoted.
-      command = "$env_setup $cc_wrapper $cl /nologo /showIncludes /FC {{defines}} {{include_dirs}} {{cflags}} $cl_m32_flag {{cflags_c}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\""
+      command = "$env_setup $cc_wrapper $cl /nologo /showIncludes /FC {{defines}} {{include_dirs}} {{cflags}} $cl_m32_flag {{cflags_c}} /c $_cc_extra_flags {{source}} /Fo{{output}} /Fd\"$pdbname\""
       depsformat = "msvc"
       outputs = [
         "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.obj",
@@ -181,7 +191,12 @@ template("msvc_toolchain") {
     tool("alink") {
       rspfile = "{{output}}.rsp"
 
-      command = "$env_setup $lib /nologo /ignore:4221 {{arflags}} /OUT:{{output}} @$rspfile"
+      _alink_extra_flags = ""
+      if (is_arm64ec) {
+        _alink_extra_flags = "/machine:ARM64EC"
+      }
+
+      command = "$env_setup $lib /nologo $_alink_extra_flags /ignore:4221 {{arflags}} /OUT:{{output}} @$rspfile"
       outputs = [
         # Ignore {{output_extension}} and always use .lib, there's no reason to
         # allow targets to override this extension on Windows.
@@ -201,10 +216,15 @@ template("msvc_toolchain") {
     tool("solink") {
       dllname = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
       libname = "${dllname}.lib"
-      pdbname = "${dllname}.pdb"
+      pdbname = "{{output_dir}}/{{target_output_name}}.pdb"
       rspfile = "${dllname}.rsp"
 
-      command = "$env_setup $link /nologo /IMPLIB:$libname /DLL /OUT:$dllname /PDB:$pdbname @$rspfile"
+      _solink_extra_flags = ""
+      if (is_arm64ec) {
+        _solink_extra_flags = "/machine:ARM64EC"
+      }
+
+      command = "$env_setup $link /nologo $_solink_extra_flags /IMPLIB:$libname /DLL /OUT:$dllname /PDB:$pdbname @$rspfile"
       outputs = [
         dllname,
         libname,
@@ -233,10 +253,15 @@ template("msvc_toolchain") {
 
     tool("link") {
       exename = "{{root_out_dir}}/{{target_output_name}}{{output_extension}}"
-      pdbname = "$exename.pdb"
+      pdbname = "{{root_out_dir}}/{{target_output_name}}.pdb"
       rspfile = "$exename.rsp"
 
-      command = "$env_setup $link /nologo /OUT:$exename /PDB:$pdbname @$rspfile"
+      _link_extra_flags = ""
+      if (is_arm64ec) {
+        _link_extra_flags = "/machine:ARM64EC"
+      }
+
+      command = "$env_setup $link /nologo $_link_extra_flags /OUT:$exename /PDB:$pdbname @$rspfile"
       default_output_extension = ".exe"
       default_output_dir = "{{root_out_dir}}"
       outputs = [ exename ]

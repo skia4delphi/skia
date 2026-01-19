@@ -102,7 +102,11 @@ config("default") {
 
   if (is_win && !is_mingw) {
     if (is_clang && current_cpu == "arm64") {
-      cflags += [ "--target=arm64-windows" ]
+      if (is_arm64ec) {
+        cflags += [ "--target=arm64ec-windows" ]
+      } else {
+        cflags += [ "--target=arm64-windows" ]
+      }
     }
     cflags += [
       "/bigobj",  # Some of our files are bigger than the regular limits.
@@ -470,6 +474,7 @@ config("warnings") {
       cflags += [
         "-Wno-unused-parameter",  # Re-enabled for header sources
         "-Wno-switch-default",  # Warns even when all enum values are covered
+        "-Wno-format",
       ]
     }
   } else {
@@ -513,6 +518,10 @@ config("warnings") {
       # This was deprecated in Clang 14 and removed in Clang 15. It might still
       # fire with older Clangs, so disable it explicitly.
       "-Wno-weak-template-vtables",
+
+      "-Wno-ms-bitfield-padding",
+      "-Wno-nrvo",
+      "-Wno-unique-object-duplication",
     ]
 
     # See https://crbug.com/1042470: This flag prevents implicit conversions among vector types.
@@ -698,11 +707,11 @@ config("debug_symbols") {
     ]
   } else if (is_win && !is_mingw) {
     cflags = [ "/Z7" ]
-    if (is_clang) {
+    if (is_clang && !is_arm64ec) {
       cflags += [ "-gcodeview-ghash" ]
       ldflags = [ "/DEBUG:GHASH" ]
     } else {
-      ldflags = [ "/DEBUG:FASTLINK" ]
+      ldflags = [ "/DEBUG:FULL" ]
     }
   } else {
     cflags = [ "-g" ]

@@ -47,7 +47,11 @@ static_assert(sizeof(skia::textlayout::TextShadow)             == sizeof(sk_text
 #ifndef SK_ARCH_64BIT
     static_assert(sizeof(skia::textlayout::LineMetrics) == 96, "");
 #else
+    #if defined(__arm64ec__) || defined(_M_ARM64EC)
+    static_assert(sizeof(skia::textlayout::LineMetrics) == 120, "");
+    #else
     static_assert(sizeof(skia::textlayout::LineMetrics) == 128, "");
+    #endif
 #endif
 
 
