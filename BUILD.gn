@@ -1075,7 +1075,10 @@ optional("gpu") {
   }
 
   cflags_cc = []
-  if (is_clang) {
+  # The -Wno-nontrivial-memcall option is only available starting with Clang
+  # 20.x. Since the latest Android NDK LTS uses Clang 18.x, this warning cannot
+  # be disabled for Android targets.
+  if (is_clang && !is_android) {
     cflags_cc += [ "-Wno-nontrivial-memcall" ]
   }
 
