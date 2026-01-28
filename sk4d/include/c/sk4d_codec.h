@@ -17,6 +17,7 @@ SK4D_API void sk4d_codec_destroy(sk_codec_t* codec);
 SK4D_API void sk4d_codec_get_dimensions(const sk_codec_t* self, /*out*/ sk_isize_t* result);
 SK4D_API sk_encodedimageformat_t sk4d_codec_get_encoded_image_format(const sk_codec_t* self);
 SK4D_API sk_image_t* sk4d_codec_get_image(sk_codec_t* self, sk_colortype_t color_type, sk_alphatype_t alpha_type, sk_colorspace_t* color_space);
+SK4D_API sk_encoded_origin_t sk4d_codec_get_origin(const sk_codec_t* self);
 SK4D_API bool sk4d_codec_get_pixels(sk_codec_t* self, void* pixels, size_t row_bytes, sk_colortype_t color_type, sk_alphatype_t alpha_type, sk_colorspace_t* color_space);
 SK4D_API sk_codec_t* sk4d_codec_make_from_file(const char file_name[]);
 SK4D_API sk_codec_t* sk4d_codec_make_from_stream(sk_stream_t* stream);

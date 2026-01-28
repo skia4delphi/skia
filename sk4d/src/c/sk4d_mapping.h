@@ -226,6 +226,7 @@ SK4D_DEF_ENUM_MAP(SkCanvas::SrcRectConstraint, sk_srcrectconstraint_t, SrcRectCo
 SK4D_DEF_ENUM_MAP(SkClipOp, sk_clipop_t, ClipOp)
 SK4D_DEF_ENUM_MAP(SkColorChannel, sk_colorchannel_t, ColorChannel)
 SK4D_DEF_ENUM_MAP(SkEncodedImageFormat, sk_encodedimageformat_t, EncodedImageFormat)
+SK4D_DEF_ENUM_MAP(SkEncodedOrigin, sk_encoded_origin_t, EncodedOrigin)
 SK4D_DEF_ENUM_MAP(SkFilterMode, sk_filtermode_t, FilterMode)
 SK4D_DEF_ENUM_MAP(SkFont::Edging, sk_fontedging_t, FontEdging)
 SK4D_DEF_ENUM_MAP(SkFontHinting, sk_fonthinting_t, FontHinting)
