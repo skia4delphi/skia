@@ -52,5 +52,5 @@ sk_typeface_t* sk4d_typeface_make_from_stream(sk_stream_t* stream, int32_t ttc_i
 
 // DEPRECATED
 sk_typeface_t* sk4d_typeface_make_from_name(const char family_name[], const sk_fontstyle_t* style) {
-    return ToTypeface(Sk4DComp::FontMgrRefDefault()->matchFamilyStyle(family_name, SkFontStyle::Normal()).release());
+    return ToTypeface(Sk4DComp::FontMgrRefDefault()->matchFamilyStyle(family_name, AsFontStyle(style)).release());
 }
