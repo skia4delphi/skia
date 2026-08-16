@@ -11,7 +11,7 @@
 #include <cstdint>
 
 // memset16 and memset32 could work on 32-bit x86 too, but for simplicity just use this on x64
-#if (defined(__x86_64__) || defined(_M_X64)) && !defined(SK_ENABLE_OPTIMIZE_SIZE)
+#if ((defined(__x86_64__) && !defined(__arm64ec__)) || (defined(_M_X64) && !defined(_M_ARM64EC))) && !defined(SK_ENABLE_OPTIMIZE_SIZE)
 
 static const char* note = "MSAN can't see that repsto initializes memory.";
 
@@ -100,7 +100,7 @@ static inline void rect_memset64(uint64_t* dst, uint64_t v, int n, size_t rowByt
 
 namespace SkOpts {
     void Init_Memset_erms() {
-        #if (defined(__x86_64__) || defined(_M_X64)) && !defined(SK_ENABLE_OPTIMIZE_SIZE)
+        #if ((defined(__x86_64__) && !defined(__arm64ec__)) || (defined(_M_X64) && !defined(_M_ARM64EC))) && !defined(SK_ENABLE_OPTIMIZE_SIZE)
             g_memset16_prev      = memset16;
             g_memset32_prev      = memset32;
             g_memset64_prev      = memset64;

@@ -18,6 +18,8 @@
 #include "src/core/SkGeometry.h"
 
 #include <cstdio>
+#include <locale>
+#include <sstream>
 
 static inline bool is_between(int c, int min, int max) {
     return (unsigned)(c - min) <= (unsigned)(max - min);
@@ -242,6 +244,16 @@ std::optional<SkPath> SkParsePath::FromSVGString(const char data[]) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+// Ensures that floating-point values in the SVG output are formatted
+// consistently  with a decimal point '.' regardless of the system's locale
+// settings.
+static void write_scalar(SkWStream* stream, SkScalar value) {
+    std::stringstream buffer;
+    buffer.imbue(std::locale::classic());
+    buffer << value;
+    stream->writeText(buffer.str().c_str());
+}
+
 SkString SkParsePath::ToSVGString(const SkPath& path, PathEncoding encoding) {
     SkDynamicMemoryWStream  stream;
 
@@ -258,9 +270,9 @@ SkString SkParsePath::ToSVGString(const SkPath& path, PathEncoding encoding) {
             if (i > 0) {
                 stream.write(" ", 1);
             }
-            stream.writeScalarAsText(pt.fX);
+            write_scalar(&stream, pt.fX);
             stream.write(" ", 1);
-            stream.writeScalarAsText(pt.fY);
+            write_scalar(&stream, pt.fY);
         }
 
         SkASSERT(count > 0);

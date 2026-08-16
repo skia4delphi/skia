@@ -19,6 +19,9 @@ declare_args() {
   malloc = ""
   werror = false
   xcode_sysroot = ""
+
+  # Argument to enable or disable ARM64E build for iOS.
+  ios_enable_arm64e = !is_sk4d_build || is_sk4d_component_build
 }
 
 if (is_ios && xcode_sysroot == "") {
@@ -74,9 +77,13 @@ config("default") {
     cflags += [ "-ffp-contract=off" ]
   }
 
-  if (is_win) {
+  if (is_win && !is_mingw) {
     if (is_clang && current_cpu == "arm64") {
-      cflags += [ "--target=arm64-windows" ]
+      if (is_arm64ec) {
+        cflags += [ "--target=arm64ec-windows" ]
+      } else {
+        cflags += [ "--target=arm64-windows" ]
+      }
     }
     cflags += [
       "/bigobj",  # Some of our files are bigger than the regular limits.
@@ -193,9 +200,13 @@ config("default") {
       _arch_flags = [
         "-arch",
         "arm64",
-        "-arch",
-        "arm64e",
       ]
+      if (ios_enable_arm64e) {
+        _arch_flags += [
+          "-arch",
+          "arm64e",
+        ]
+      }
     } else if (current_cpu == "x86") {
       _arch_flags = [
         "-arch",
@@ -422,14 +433,14 @@ config("warnings") {
   cflags_objcc = []
 
   if (werror) {
-    if (is_win) {
+    if (is_win && !is_mingw) {
       cflags += [ "/WX" ]
     } else {
       cflags += [ "-Werror" ]
     }
   }
 
-  if (is_win) {
+  if (is_win && !is_mingw) {
     cflags += [
       "/W3",  # Turn on lots of warnings.
 
@@ -462,6 +473,7 @@ config("warnings") {
       cflags += [
         "-Wno-unused-parameter",  # Re-enabled for header sources
         "-Wno-switch-default",  # Warns even when all enum values are covered
+        "-Wno-format",
       ]
     }
   } else {
@@ -479,6 +491,16 @@ config("warnings") {
       "-Wno-switch-default",  # Warns even when all enum values are covered
       "-Wno-unused-parameter",  # Re-enabled for header sources
     ]
+    if (is_win) {
+      cflags += [
+        "-Wno-extra-semi-stmt",
+        "-Wno-suggest-destructor-override",
+        "-Wno-suggest-override",
+        "-Wno-tautological-type-limit-compare",
+        "-Wno-unknown-pragmas",
+        "-Wno-unused-template",
+      ]
+    }
     cflags_cc += [
       "-Wnon-virtual-dtor",
       "-Wno-noexcept-type",
@@ -495,6 +517,10 @@ config("warnings") {
       # This was deprecated in Clang 14 and removed in Clang 15. It might still
       # fire with older Clangs, so disable it explicitly.
       "-Wno-weak-template-vtables",
+
+      "-Wno-ms-bitfield-padding",
+      "-Wno-nrvo",
+      "-Wno-unique-object-duplication",
     ]
 
     # See https://crbug.com/1042470: This flag prevents implicit conversions among vector types.
@@ -621,7 +647,6 @@ config("warnings") {
       "-Wdeprecated-attributes",
       "-Wdeprecated-comma-subscript",
       "-Wdeprecated-copy",
-      "-Wdeprecated-copy-dtor",
 
       #"-Wdeprecated-declarations",
       "-Wdeprecated-dynamic-exception-spec",
@@ -636,6 +661,10 @@ config("warnings") {
       "-Wdeprecated-writable-str",
       "-Wextra-semi",
     ]
+
+    if (!is_mingw) {
+      cflags += [ "-Wdeprecated-copy-dtor" ]
+    }
   }
 
   # !is_clang is a proxy for gcc.
@@ -683,27 +712,31 @@ config("debug_symbols") {
       "-gline-tables-only",
       "-funwind-tables",  # Helps make in-process backtraces fuller.
     ]
-  } else if (is_win) {
+  } else if (is_win && !is_mingw) {
     cflags = [ "/Z7" ]
-    if (is_clang) {
+    if (is_clang && !is_arm64ec) {
       cflags += [ "-gcodeview-ghash" ]
       ldflags = [ "/DEBUG:GHASH" ]
     } else {
       ldflags = [ "/DEBUG:FULL" ]
     }
   } else {
-    cflags = [
-      "-g",
-      "-gdwarf-4",  # older versions of addr2line do not work well with v5
-    ]
+    cflags = [ "-g" ]
+    if (!is_win) {
+      # older versions of addr2line do not work well with v5
+      cflags += [ "-gdwarf-4" ]
+    } else {
+      cflags += [ "-gcodeview" ]
+      ldflags = [ "-Wl,--pdb=" ]
+    }
   }
 }
 
 config("no_rtti") {
-  # -fsanitize=vptr requires RTTI which is enabled as a part of
-  # -fsanitize=undefined
+  # -fsanitize=vptr requires RTTI which is enabled as part of
+  # -fsanitize=undefined.
   if (sanitize != "ASAN") {
-    if (is_win) {
+    if (is_win && !is_mingw) {
       cflags_cc = [ "/GR-" ]
     } else {
       cflags_cc = [ "-fno-rtti" ]
@@ -714,7 +747,7 @@ config("no_rtti") {
 
 config("optimize") {
   ldflags = []
-  if (is_win) {
+  if (is_win && !is_mingw) {
     cflags = [
       "/O2",
       "/Zc:inline",

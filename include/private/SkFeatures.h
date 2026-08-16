@@ -65,7 +65,9 @@
     #endif
 #endif
 
-#if defined(__i386) || defined(_M_IX86) ||  defined(__x86_64__) || defined(_M_X64)
+#if defined(__i386) || defined(_M_IX86) || \
+    (defined(__x86_64__) && !defined(__arm64ec__)) || \
+    (defined(_M_X64) && !defined(_M_ARM64EC))
   #define SK_CPU_X86 1
 #endif
 
@@ -147,7 +149,7 @@
         #define SK_CPU_X64_LEVEL        SK_CPU_X64_LEVEL_AVX2
     #elif defined(__AVX__)
         #define SK_CPU_X64_LEVEL        SK_CPU_X64_LEVEL_AVX
-    #elif defined(_M_X64) || defined(_M_AMD64)
+    #elif (defined(_M_X64) || defined(_M_AMD64)) && !defined(_M_ARM64EC)
         #define SK_CPU_X64_LEVEL        SK_CPU_X64_LEVEL_SSE2
     #elif defined(_M_IX86_FP)
         #if _M_IX86_FP >= 2

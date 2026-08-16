@@ -104,6 +104,9 @@ config("skia_private") {
   if (skia_use_gl && skia_use_angle) {
     defines += [ "SK_ANGLE" ]
   }
+  if (skia_use_vma) {
+    defines += [ "SK_USE_VMA" ]
+  }
   if (skia_enable_winuwp) {
     defines += [ "SK_WINUWP" ]
   }
@@ -171,27 +174,20 @@ is_loong64 = current_cpu == "loong64"
 opts("ml3") {
   enabled = is_x86
   sources = skia_opts.ml3_sources
-  if (is_win) {
+  if (is_win && !is_mingw && !is_sk4d_build) {
     cflags = [ "/arch:AVX2" ]
-  } else if (current_cpu == "x86") {
+  } else if (!is_win || !is_sk4d_build) {
     cflags = [ "-march=haswell" ]
-  } else {
-    cflags = [ "-march=x86-64-v3" ]
   }
 }
 
 opts("ml4") {
   enabled = is_x86
   sources = skia_opts.ml4_sources
-  if (is_win) {
+  if (is_win && !is_mingw && !is_sk4d_build) {
     cflags = [ "/arch:AVX512" ]
-  } else if (current_cpu == "x86") {
+  } else if (!is_win || !is_sk4d_build) {
     cflags = [ "-march=skylake-avx512" ]
-  } else {
-    cflags = [
-      "-march=x86-64-v4",
-      "-mprefer-vector-width=512",
-    ]
   }
 }
 
@@ -503,7 +499,11 @@ optional("fontmgr_win_gdi") {
   public_defines = [ "SK_FONTMGR_GDI_AVAILABLE" ]
   public = skia_ports_windows_fonts_public
   sources = skia_ports_fonthost_win_sources
-  libs = [ "Gdi32.lib" ]
+  if (!is_mingw) {
+    libs = [ "Gdi32.lib" ]
+  } else {
+    libs = [ "Gdi32" ]
+  }
 }
 
 if (skia_lex) {
@@ -581,6 +581,12 @@ if (skia_compile_modules || skia_compile_sksl_tests) {
   }
 }
 
+optional("fastfloat") {
+  enabled = skia_use_fastfloat
+  public_defines = [ "SK_FAST_FLOAT" ]
+  public_deps = [ "//third_party/fastfloat" ]
+}
+
 if (skia_compile_modules) {
   # Generate the sksl-minify binary.
   skia_executable("sksl-minify") {
@@ -612,6 +618,7 @@ if (skia_compile_modules) {
     sources += skia_sksl_codegen_sources
     include_dirs = [ "." ]
     deps = [
+      ":fastfloat",
       ":run_sksllex",
       "//src/partition_alloc:raw_ptr",
     ]
@@ -747,6 +754,7 @@ if (skia_compile_sksl_tests) {
     sources += skia_sksl_validate_wgsl_sources
     include_dirs = [ "." ]
     deps = [
+      ":fastfloat",
       ":run_sksllex",
       "//src/partition_alloc:raw_ptr",
       "//third_party/dawn:tint",
@@ -1011,8 +1019,12 @@ optional("gpu") {
         "src/gpu/ganesh/gl/win/GrGLMakeNativeInterface_win.cpp",
         "src/gpu/ganesh/gl/win/GrGLMakeWinInterface.cpp",
       ]
-      if (target_cpu != "arm64") {
-        libs += [ "OpenGL32.lib" ]
+      if (target_cpu != "arm64" || skia_link_gl_winarm) {
+        if (!is_mingw) {
+          libs += [ "OpenGL32.lib" ]
+        } else {
+          libs += [ "OpenGL32" ]
+        }
       }
     } else {
       sources += [ "src/gpu/ganesh/gl/GrGLMakeNativeInterface_none.cpp" ]
@@ -1043,6 +1055,15 @@ optional("gpu") {
       "dxgi.lib",
       "d3dcompiler.lib",
     ]
+  }
+
+  cflags_cc = []
+
+  # The -Wno-nontrivial-memcall option is only available starting with Clang
+  # 20.x. Since the latest Android NDK LTS uses Clang 18.x, this warning cannot
+  # be disabled for Android targets.
+  if (is_clang && !is_android) {
+    cflags_cc += [ "-Wno-nontrivial-memcall" ]
   }
 
   cflags_objcc = []
@@ -1932,6 +1953,7 @@ skia_component("skia") {
     ":android_utils",
     ":avif",
     ":crabbyavif",
+    ":fastfloat",
     ":jpeg_decode",
     ":jpegxl_decode",
     ":lasx",
@@ -2014,17 +2036,33 @@ skia_component("skia") {
                  "src/ports/SkImageGeneratorWIC.cpp",
                  "src/ports/SkLog_win.cpp",
                ]
-    libs += [
-      "Ole32.lib",
-      "OleAut32.lib",
-    ]
+    if (!is_mingw) {
+      libs += [
+        "Ole32.lib",
+        "OleAut32.lib",
+      ]
+    } else {
+      libs += [
+        "Ole32",
+        "OleAut32",
+        "Uuid",
+      ]
+    }
 
     if (!skia_enable_winuwp) {
-      libs += [
-        "FontSub.lib",
-        "User32.lib",
-        "Usp10.lib",
-      ]
+      if (!is_mingw) {
+        libs += [
+          "FontSub.lib",
+          "User32.lib",
+          "Usp10.lib",
+        ]
+      } else {
+        libs += [
+          "FontSub",
+          "User32",
+          "Usp10",
+        ]
+      }
     }
   } else {
     sources += [ "src/ports/SkOSFile_posix.cpp" ]
@@ -2411,9 +2449,17 @@ if (skia_enable_tools) {
             "tools/ganesh/gl/win/SkWGL.h",
             "tools/ganesh/gl/win/SkWGL_win.cpp",
           ]
-          libs += [ "Gdi32.lib" ]
-          if (target_cpu != "arm64") {
-            libs += [ "OpenGL32.lib" ]
+          if (is_mingw) {
+            libs += [ "Gdi32" ]
+          } else {
+            libs += [ "Gdi32.lib" ]
+          }
+          if (target_cpu != "arm64" || skia_link_gl_winarm) {
+            if (is_mingw) {
+              libs += [ "OpenGL32" ]
+            } else {
+              libs += [ "OpenGL32.lib" ]
+            }
           }
         } else if (is_wasm) {
           # TODO: replace with webgl test context
@@ -3987,5 +4033,200 @@ if (skia_build_rust_targets) {
       "//experimental/rust_cxx:cpp_with_rust",
       "../../bazel-bin/experimental/rust_cxx/cpp_with_rust",
     ]
+  }
+}
+
+if (is_sk4d_build) {
+  config("sk4d_public") {
+    include_dirs = [
+      "sk4d",
+      "sk4d/src/comp",
+    ]
+    defines = []
+    if (is_sk4d_component_build) {
+      defines += [ "SK4D_DLL" ]
+    }
+  }
+
+  sk4d_component("sk4d") {
+    defines = [ "SK4D_IMPLEMENTATION=1" ]
+    deps = [
+      ":skia",
+      "modules/skottie",
+      "modules/skparagraph",
+      "modules/skshaper",
+      "modules/skunicode",
+      "modules/svg",
+    ]
+    public_configs = [ ":sk4d_public" ]
+    public = [
+      "sk4d/include/c/gr4d_backendsemaphore.h",
+      "sk4d/include/c/gr4d_backendsurface.h",
+      "sk4d/include/c/gr4d_backendsurfacemutablestate.h",
+      "sk4d/include/c/gr4d_contextoptions.h",
+      "sk4d/include/c/gr4d_directcontext.h",
+      "sk4d/include/c/gr4d_gl_interface.h",
+      "sk4d/include/c/gr4d_shadererrorhandler.h",
+      "sk4d/include/c/gr4d_vk_extensions.h",
+      "sk4d/include/c/sk4d_animatedwebpencoder.h",
+      "sk4d/include/c/sk4d_blender.h",
+      "sk4d/include/c/sk4d_canvas.h",
+      "sk4d/include/c/sk4d_codec.h",
+      "sk4d/include/c/sk4d_colorfilter.h",
+      "sk4d/include/c/sk4d_colorspace.h",
+      "sk4d/include/c/sk4d_data.h",
+      "sk4d/include/c/sk4d_document.h",
+      "sk4d/include/c/sk4d_font.h",
+      "sk4d/include/c/sk4d_graphics.h",
+      "sk4d/include/c/sk4d_image.h",
+      "sk4d/include/c/sk4d_imageencoder.h",
+      "sk4d/include/c/sk4d_imagefilter.h",
+      "sk4d/include/c/sk4d_maskfilter.h",
+      "sk4d/include/c/sk4d_paint.h",
+      "sk4d/include/c/sk4d_path.h",
+      "sk4d/include/c/sk4d_pathbuilder.h",
+      "sk4d/include/c/sk4d_patheffect.h",
+      "sk4d/include/c/sk4d_pathmeasure.h",
+      "sk4d/include/c/sk4d_picture.h",
+      "sk4d/include/c/sk4d_picturerecorder.h",
+      "sk4d/include/c/sk4d_pixmap.h",
+      "sk4d/include/c/sk4d_refcnt.h",
+      "sk4d/include/c/sk4d_region.h",
+      "sk4d/include/c/sk4d_rrect.h",
+      "sk4d/include/c/sk4d_runtimeeffect.h",
+      "sk4d/include/c/sk4d_shader.h",
+      "sk4d/include/c/sk4d_stream.h",
+      "sk4d/include/c/sk4d_string.h",
+      "sk4d/include/c/sk4d_surface.h",
+      "sk4d/include/c/sk4d_svgcanvas.h",
+      "sk4d/include/c/sk4d_textblob.h",
+      "sk4d/include/c/sk4d_tracememorydump.h",
+      "sk4d/include/c/sk4d_typeface.h",
+      "sk4d/include/c/sk4d_types.h",
+      "sk4d/include/c/sk4d_vertices.h",
+      "sk4d/include/core/Sk4DStream.h",
+      "sk4d/include/core/Sk4DTraceMemoryDump.h",
+      "sk4d/include/sk4d_version.h",
+      "sk4d/modules/particles/include/sk4d_particleeffect.h",
+      "sk4d/modules/skottie/include/sk4d_skottie.h",
+      "sk4d/modules/skottie/include/sk4d_skottie_types.h",
+      "sk4d/modules/skparagraph/include/sk4d_paragraph.h",
+      "sk4d/modules/skparagraph/include/sk4d_paragraph_types.h",
+      "sk4d/modules/skparagraph/include/sk4d_paragraphbuilder.h",
+      "sk4d/modules/skparagraph/include/sk4d_paragraphstyle.h",
+      "sk4d/modules/skparagraph/include/sk4d_textstyle.h",
+      "sk4d/modules/skparagraph/include/sk4d_typefacefontprovider.h",
+      "sk4d/modules/skresources/include/Sk4DResources.h",
+      "sk4d/modules/skresources/include/sk4d_resources.h",
+      "sk4d/modules/skresources/include/sk4d_resources_types.h",
+      "sk4d/modules/skshaper/include/sk4d_shaper.h",
+      "sk4d/modules/skshaper/include/sk4d_shaper_types.h",
+      "sk4d/modules/skunicode/include/sk4d_unicode.h",
+      "sk4d/modules/skunicode/include/sk4d_unicode_types.h",
+      "sk4d/modules/svg/include/sk4d_svg_types.h",
+      "sk4d/modules/svg/include/sk4d_svgdom.h",
+      "sk4d/modules/svg/include/sk4d_svgnode.h",
+      "sk4d/modules/svg/include/sk4d_svgsvg.h",
+    ]
+    sources = [
+      "sk4d/modules/particles/src/sk4d_particleeffect.cpp",
+      "sk4d/modules/skottie/src/sk4d_skottie.cpp",
+      "sk4d/modules/skottie/src/sk4d_skottie_mapping.h",
+      "sk4d/modules/skparagraph/src/sk4d_paragraph.cpp",
+      "sk4d/modules/skparagraph/src/sk4d_paragraph_mapping.h",
+      "sk4d/modules/skparagraph/src/sk4d_paragraphbuilder.cpp",
+      "sk4d/modules/skparagraph/src/sk4d_paragraphstyle.cpp",
+      "sk4d/modules/skparagraph/src/sk4d_textstyle.cpp",
+      "sk4d/modules/skparagraph/src/sk4d_typefacefontprovider.cpp",
+      "sk4d/modules/skresources/src/Sk4DResources.cpp",
+      "sk4d/modules/skresources/src/sk4d_resources.cpp",
+      "sk4d/modules/skresources/src/sk4d_resources_mapping.h",
+      "sk4d/modules/skshaper/src/sk4d_shaper.cpp",
+      "sk4d/modules/skshaper/src/sk4d_shaper_mapping.h",
+      "sk4d/modules/skunicode/src/sk4d_unicode.cpp",
+      "sk4d/modules/skunicode/src/sk4d_unicode_mapping.h",
+      "sk4d/modules/svg/src/sk4d_svg_mapping.h",
+      "sk4d/modules/svg/src/sk4d_svgdom.cpp",
+      "sk4d/modules/svg/src/sk4d_svgnode.cpp",
+      "sk4d/modules/svg/src/sk4d_svgsvg.cpp",
+      "sk4d/src/c/gr4d_backendsemaphore.cpp",
+      "sk4d/src/c/gr4d_backendsurface.cpp",
+      "sk4d/src/c/gr4d_backendsurfacemutablestate.cpp",
+      "sk4d/src/c/gr4d_contextoptions.cpp",
+      "sk4d/src/c/gr4d_directcontext.cpp",
+      "sk4d/src/c/gr4d_gl_interface.cpp",
+      "sk4d/src/c/gr4d_shadererrorhandler.cpp",
+      "sk4d/src/c/gr4d_vk_extensions.cpp",
+      "sk4d/src/c/sk4d_animatedwebpencoder.cpp",
+      "sk4d/src/c/sk4d_blender.cpp",
+      "sk4d/src/c/sk4d_canvas.cpp",
+      "sk4d/src/c/sk4d_codec.cpp",
+      "sk4d/src/c/sk4d_colorfilter.cpp",
+      "sk4d/src/c/sk4d_colorspace.cpp",
+      "sk4d/src/c/sk4d_data.cpp",
+      "sk4d/src/c/sk4d_document.cpp",
+      "sk4d/src/c/sk4d_font.cpp",
+      "sk4d/src/c/sk4d_graphics.cpp",
+      "sk4d/src/c/sk4d_image.cpp",
+      "sk4d/src/c/sk4d_imageencoder.cpp",
+      "sk4d/src/c/sk4d_imagefilter.cpp",
+      "sk4d/src/c/sk4d_mapping.h",
+      "sk4d/src/c/sk4d_maskfilter.cpp",
+      "sk4d/src/c/sk4d_paint.cpp",
+      "sk4d/src/c/sk4d_path.cpp",
+      "sk4d/src/c/sk4d_pathbuilder.cpp",
+      "sk4d/src/c/sk4d_patheffect.cpp",
+      "sk4d/src/c/sk4d_pathmeasure.cpp",
+      "sk4d/src/c/sk4d_picture.cpp",
+      "sk4d/src/c/sk4d_picturerecorder.cpp",
+      "sk4d/src/c/sk4d_pixmap.cpp",
+      "sk4d/src/c/sk4d_refcnt.cpp",
+      "sk4d/src/c/sk4d_region.cpp",
+      "sk4d/src/c/sk4d_rrect.cpp",
+      "sk4d/src/c/sk4d_runtimeeffect.cpp",
+      "sk4d/src/c/sk4d_shader.cpp",
+      "sk4d/src/c/sk4d_stream.cpp",
+      "sk4d/src/c/sk4d_string.cpp",
+      "sk4d/src/c/sk4d_surface.cpp",
+      "sk4d/src/c/sk4d_svgcanvas.cpp",
+      "sk4d/src/c/sk4d_textblob.cpp",
+      "sk4d/src/c/sk4d_tracememorydump.cpp",
+      "sk4d/src/c/sk4d_typeface.cpp",
+      "sk4d/src/c/sk4d_vertices.cpp",
+      "sk4d/src/comp/include/effects/SkOpPathEffect.h",
+      "sk4d/src/comp/src/effects/SkOpPE.h",
+      "sk4d/src/comp/src/effects/SkOpPathEffect.cpp",
+      "sk4d/src/core/Sk4DStream.cpp",
+      "sk4d/src/core/Sk4DTraceMemoryDump.cpp",
+      "sk4d/src/sk4d_comp.cpp",
+      "sk4d/src/sk4d_comp.h",
+    ]
+    if (sk4d_enable_assertions) {
+      sources += [
+        "sk4d/modules/skottie/src/sk4d_skottie_assertions.cpp",
+        "sk4d/modules/skparagraph/src/sk4d_paragraph_assertions.cpp",
+        "sk4d/modules/skresources/src/sk4d_resources_assertions.cpp",
+        "sk4d/modules/skunicode/src/sk4d_unicode_assertions.cpp",
+        "sk4d/modules/svg/src/sk4d_svg_assertions.cpp",
+        "sk4d/src/c/sk4d_assertions.cpp",
+        "sk4d/src/c/sk4d_assertions.h",
+      ]
+    }
+    if (skia_enable_ganesh) {
+      public += [
+        "sk4d/include/gpu/Gr4DContextOptions.h",
+        "sk4d/include/gpu/Gr4DShaderErrorHandler.h",
+      ]
+      sources += [
+        "sk4d/src/gpu/Gr4DContextOptions.cpp",
+        "sk4d/src/gpu/Gr4DShaderErrorHandler.cpp",
+      ]
+
+      # To ensure Vulkan headers are compatible with Skia, always use the ones
+      # provided with Skia.
+      if (skia_use_vulkan) {
+        all_dependent_configs = [ ":use_skia_vulkan_headers" ]
+      }
+    }
   }
 }

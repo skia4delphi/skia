@@ -114,6 +114,12 @@ declare_args() {
 
   skia_build_rust_targets = false
 
+  # Enable FastFloat when building Skia4Delphi. This is important not only for
+  # performance but also to resolve a long-standing Skia issue. When parsing SVG
+  # files, float values must be locale-independent, ensuring the use of a period
+  # as the decimal separator. This maximizes global SVG compatibility.
+  skia_use_fastfloat = is_sk4d_build
+
   # PartitionAlloc is Chrome's memory allocator.
   #
   # This is useful to:
@@ -122,11 +128,23 @@ declare_args() {
   #
   # While GCC is supported, it lacks CI coverage to catch regressions.
   # Therefore, we disable it by default on GCC builds.
-  skia_use_partition_alloc = is_clang
+  # PartitionAlloc does not recognize Clang's ARM64EC hybrid macros and takes
+  # its x86 paths, which emit instructions and include intrinsics that cannot
+  # be compiled for the ARM64 part of an ARM64EC binary. It also requires a
+  # C++20 standard library that is newer than the one in our Ubuntu 20.04
+  # sysroot. On Android, its allocator shim relies on linker --wrap flags that
+  # cannot be propagated through a static sk4d archive to Delphi's final link.
+  # Keep Skia4Delphi on Skia's default allocator on those targets.
+  skia_use_partition_alloc =
+      is_clang && !is_arm64ec && !is_linux && !is_android
   skia_partition_alloc_dir = "//third_party/externals/partition_alloc"
 }
 
 declare_args() {
+  # Early versions of Windows ARM64 did not include the OpenGL32 library.
+  # This was likely the reason Skia avoided adding it by default.
+  skia_link_gl_winarm = is_sk4d_build && skia_use_gl
+
   if (is_mac) {
     skia_gl_standard = "gl"
   } else if (is_ios) {
@@ -167,7 +185,8 @@ declare_args() {
   skia_enable_fontmgr_win_gdi = is_win && !skia_enable_winuwp
   skia_enable_fontmgr_FontConfigInterface =
       skia_use_freetype && skia_use_fontconfig
-  skia_enable_spirv_validation = is_skia_dev_build && is_debug && !skia_use_dawn
+  skia_enable_spirv_validation =
+      is_skia_dev_build && is_debug && !skia_use_dawn && !is_mingw
   skia_use_dng_sdk = !is_wasm && skia_use_libjpeg_turbo_decode && skia_use_zlib
   skia_enable_vulkan_debug_layers = skia_enable_gpu_debug_layers
   skia_enable_direct3d_debug_layer = skia_enable_gpu_debug_layers

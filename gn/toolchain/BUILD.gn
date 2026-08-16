@@ -19,6 +19,16 @@ declare_args() {
       target_cc = "$_prefix/$ndk_target$ndk_api-clang"
       target_cxx = "$_prefix/$ndk_target$ndk_api-clang++"
     }
+  } else if (is_mingw) {
+    if (host_os == "win") {
+      target_ar = "$win_mingw/bin/$mingw_target-llvm-ar.exe"
+      target_cc = "$win_mingw/bin/$mingw_target-clang.exe"
+      target_cxx = "$win_mingw/bin/$mingw_target-clang++.exe"
+    } else {
+      target_ar = "$win_mingw/bin/$mingw_target-llvm-ar"
+      target_cc = "$win_mingw/bin/$mingw_target-clang"
+      target_cxx = "$win_mingw/bin/$mingw_target-clang++"
+    }
   } else {
     target_ar = ar
     target_cc = cc
@@ -38,6 +48,11 @@ declare_args() {
   # such builders to limit the number of concurrent link steps.
   # link_pool_depth < 0 means no pool, 0 means cpu count, > 0 sets pool size.
   link_pool_depth = -1
+
+  # Auxiliary arguments used internally by Skia4Delphi's build scripts for
+  # cross-platform compilation.
+  apple_use_ar = false
+  win_vc_skip_env_setup = false
 }
 
 declare_args() {
@@ -49,9 +64,11 @@ declare_args() {
 if (host_os == "win") {
   shell = "cmd.exe /c "
   stamp = "$shell echo >"
+  script_exec = "python"
 } else {
   shell = ""
   stamp = "touch"
+  script_exec = "python3"
 }
 
 if (current_toolchain == default_toolchain) {
@@ -77,6 +94,18 @@ template("msvc_toolchain") {
 
     bin = "$win_vc/Tools/MSVC/$win_toolchain_version/bin/HostX64/$toolchain_target_cpu"
 
+    env_setup = ""
+    if (!win_vc_skip_env_setup) {
+      if (toolchain_target_cpu == "x86") {
+        # Toolchain asset includes a script that configures for x86 building.
+        # We don't support x86 builds with local MSVC installations.
+        env_setup = "$shell $win_sdk/bin/SetEnv.cmd /x86 && "
+      } else if (toolchain_target_cpu == "arm64") {
+        # ARM64 compiler is incomplete - it relies on DLLs located in the host toolchain directory.
+        env_setup = "$shell set \"PATH=%PATH%;$win_vc\\Tools\\MSVC\\$win_toolchain_version\\bin\\HostX64\\x64\" && "
+      }
+    }
+
     cl_m32_flag = ""
 
     if (clang_win != "") {
@@ -88,8 +117,13 @@ template("msvc_toolchain") {
       }
       if (host_os == "win") {
         cl = "\"$clang_win/bin/clang-cl.exe\""
-        lib = "\"$clang_win/bin/lld-link.exe\" /lib"
-        link = "\"$clang_win/bin/lld-link.exe\""
+        if (is_arm64ec) {
+          lib = "\"$bin/lib.exe\""
+          link = "\"$bin/link.exe\""
+        } else {
+          lib = "\"$clang_win/bin/lld-link.exe\" /lib"
+          link = "\"$clang_win/bin/lld-link.exe\""
+        }
       } else {
         cl = "\"$clang_win/bin/clang-cl\""
         lib = "\"$clang_win/bin/lld-link\" /lib"
@@ -106,8 +140,7 @@ template("msvc_toolchain") {
       if (toolchain_target_cpu == "x64") {
         _ml += "64"
       }
-      command =
-          "\"$bin/$_ml.exe\" {{asmflags}} /nologo /c /Fo {{output}} {{source}}"
+      command = "$env_setup \"$bin/$_ml.exe\" {{asmflags}} /nologo /c /Fo {{output}} {{source}}"
       outputs = [
         "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.obj",
       ]
@@ -118,8 +151,13 @@ template("msvc_toolchain") {
       precompiled_header_type = "msvc"
       pdbname = "{{target_out_dir}}/{{label_name}}_c.pdb"
 
+      _cc_extra_flags = ""
+      if (is_arm64ec) {
+        _cc_extra_flags = "/arm64EC"
+      }
+
       # Label names may have spaces so pdbname must be quoted.
-      command = "$cc_wrapper $cl /nologo /showIncludes /FC {{defines}} {{include_dirs}} {{cflags}} $cl_m32_flag {{cflags_c}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\""
+      command = "$env_setup $cc_wrapper $cl /nologo /showIncludes /FC {{defines}} {{include_dirs}} {{cflags}} $cl_m32_flag {{cflags_c}} /c $_cc_extra_flags {{source}} /Fo{{output}} /Fd\"$pdbname\""
       depsformat = "msvc"
       outputs = [
         "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.obj",
@@ -132,7 +170,7 @@ template("msvc_toolchain") {
       pdbname = "{{target_out_dir}}/{{label_name}}_c.pdb"
 
       # Label names may have spaces so pdbname must be quoted.
-      command = "$cc_wrapper $cl /nologo /showIncludes /FC {{defines}} {{include_dirs}} {{cflags}} $cl_m32_flag {{cflags_cc}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\""
+      command = "$env_setup $cc_wrapper $cl /nologo /showIncludes /FC {{defines}} {{include_dirs}} {{cflags}} $cl_m32_flag {{cflags_cc}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\""
       depsformat = "msvc"
       outputs = [
         "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.obj",
@@ -143,8 +181,12 @@ template("msvc_toolchain") {
     tool("alink") {
       rspfile = "{{output}}.rsp"
 
-      command =
-          "$lib /nologo /ignore:4221 {{arflags}} /OUT:{{output}} @$rspfile"
+      _alink_extra_flags = ""
+      if (is_arm64ec) {
+        _alink_extra_flags = "/machine:ARM64EC"
+      }
+
+      command = "$env_setup $lib /nologo $_alink_extra_flags /ignore:4221 {{arflags}} /OUT:{{output}} @$rspfile"
       outputs = [
         # Ignore {{output_extension}} and always use .lib, there's no reason to
         # allow targets to override this extension on Windows.
@@ -164,10 +206,15 @@ template("msvc_toolchain") {
     tool("solink") {
       dllname = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
       libname = "${dllname}.lib"
-      pdbname = "${dllname}.pdb"
+      pdbname = "{{output_dir}}/{{target_output_name}}.pdb"
       rspfile = "${dllname}.rsp"
 
-      command = "$link /nologo /IMPLIB:$libname /DLL /OUT:$dllname /PDB:$pdbname @$rspfile"
+      _solink_extra_flags = ""
+      if (is_arm64ec) {
+        _solink_extra_flags = "/machine:ARM64EC"
+      }
+
+      command = "$env_setup $link /nologo $_solink_extra_flags /IMPLIB:$libname /DLL /OUT:$dllname /PDB:$pdbname @$rspfile"
       outputs = [
         dllname,
         libname,
@@ -196,10 +243,15 @@ template("msvc_toolchain") {
 
     tool("link") {
       exename = "{{root_out_dir}}/{{target_output_name}}{{output_extension}}"
-      pdbname = "$exename.pdb"
+      pdbname = "{{root_out_dir}}/{{target_output_name}}.pdb"
       rspfile = "$exename.rsp"
 
-      command = "$link /nologo /OUT:$exename /PDB:$pdbname @$rspfile"
+      _link_extra_flags = ""
+      if (is_arm64ec) {
+        _link_extra_flags = "/machine:ARM64EC"
+      }
+
+      command = "$env_setup $link /nologo $_link_extra_flags /OUT:$exename /PDB:$pdbname @$rspfile"
       default_output_extension = ".exe"
       default_output_dir = "{{root_out_dir}}"
       outputs = [ exename ]
@@ -219,7 +271,7 @@ template("msvc_toolchain") {
 
     tool("copy") {
       cp_py = rebase_path("../cp.py")
-      command = "$shell python3 \"$cp_py\" {{source}} {{output}}"
+      command = "$shell $script_exec \"$cp_py\" {{source}} {{output}}"
       description = "copy {{source}} {{output}}"
     }
 
@@ -301,18 +353,20 @@ template("gcc_like_toolchain") {
       description = "assemble {{source}}"
     }
 
-    if (current_os == "mac" || current_os == "ios" || current_os == "tvos") {
+    if ((current_os == "mac" || current_os == "ios" || current_os == "tvos") &&
+        !apple_use_ar) {
       not_needed([ "ar" ])  # We use libtool instead.
     }
 
     tool("alink") {
-      if (current_os == "mac" || current_os == "ios" || current_os == "tvos") {
+      if ((current_os == "mac" || current_os == "ios" ||
+           current_os == "tvos") && !apple_use_ar) {
         command = "libtool -static -o {{output}} -no_warning_for_no_symbols {{inputs}}"
       } else {
         rspfile = "{{output}}.rsp"
         rspfile_content = "{{inputs}}"
         rm_py = rebase_path("../rm.py")
-        command = "$shell python3 \"$rm_py\" \"{{output}}\" && $ar rcs {{output}} @$rspfile"
+        command = "$shell $script_exec \"$rm_py\" \"{{output}}\" && $ar rcs {{output}} @$rspfile"
       }
 
       outputs =
@@ -335,6 +389,8 @@ template("gcc_like_toolchain") {
       rpath = "-Wl,-soname,$soname"
       if (current_os == "mac" || current_os == "ios" || current_os == "tvos") {
         rpath = "-Wl,-install_name,@rpath/$soname"
+      } else if (is_mingw) {
+        rpath = ""
       }
 
       rspfile = "{{output}}.rsp"
@@ -365,6 +421,8 @@ template("gcc_like_toolchain") {
         default_output_extension = ".dylib"
       } else if (current_os == "wasm" && !is_canvaskit) {
         default_output_extension = ".wasm.so"
+      } else if (is_mingw) {
+        default_output_extension = ".dll"
       } else {
         default_output_extension = ".so"
       }

@@ -2475,7 +2475,7 @@ bool skcms_ApproximateCurve(const skcms_Curve* curve,
 enum class CpuType { Baseline, HSW, SKX };
 
 static CpuType cpu_type() {
-    #if defined(SKCMS_PORTABLE) || !defined(__x86_64__) || defined(SKCMS_FORCE_BASELINE)
+    #if defined(SKCMS_PORTABLE) || (!defined(__x86_64__) || defined(__arm64ec__)) || defined(SKCMS_FORCE_BASELINE)
         return CpuType::Baseline;
     #elif defined(SKCMS_FORCE_HSW)
         return CpuType::HSW;

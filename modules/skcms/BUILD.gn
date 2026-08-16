@@ -31,9 +31,10 @@ template("arch") {
 }
 
 arch("skcms_TransformHsw") {
-  enabled = current_cpu == "x64" && target_os != "android"
+  enabled = current_cpu == "x64" && target_os != "android" &&
+            (!is_win || !is_sk4d_build)
   sources = skcms_TransformHsw
-  if (is_win) {
+  if (is_win && !is_mingw) {
     if (is_clang) {
       cflags = [
         "/clang:-mavx2",
@@ -43,7 +44,7 @@ arch("skcms_TransformHsw") {
     } else {
       cflags = [ "/arch:AVX2" ]
     }
-  } else {
+  } else if (!is_win || !is_sk4d_build) {
     cflags = [
       "-mavx2",
       "-mf16c",
@@ -53,20 +54,23 @@ arch("skcms_TransformHsw") {
 }
 
 arch("skcms_TransformSkx") {
-  enabled = current_cpu == "x64" && target_os != "android"
+  enabled = current_cpu == "x64" && target_os != "android" &&
+            (!is_win || !is_sk4d_build)
   sources = skcms_TransformSkx
   if (is_win) {
-    if (is_clang) {
-      cflags = [
-        "/clang:-mavx512f",
-        "/clang:-mavx512dq",
-        "/clang:-mavx512cd",
-        "/clang:-mavx512bw",
-        "/clang:-mavx512vl",
-        "/clang:-ffp-contract=off",
-      ]
-    } else {
-      cflags = [ "/arch:AVX512" ]
+    if (!is_mingw) {
+      if (is_clang) {
+        cflags = [
+          "/clang:-mavx512f",
+          "/clang:-mavx512dq",
+          "/clang:-mavx512cd",
+          "/clang:-mavx512bw",
+          "/clang:-mavx512vl",
+          "/clang:-ffp-contract=off",
+        ]
+      } else {
+        cflags = [ "/arch:AVX512" ]
+      }
     }
   } else {
     cflags = [
@@ -81,11 +85,14 @@ arch("skcms_TransformSkx") {
 }
 
 static_library("skcms") {
-  cflags = []
-  if (!is_win || is_clang) {
-    cflags += [ "-std=c11" ]
+  cflags_c = []
+  if (is_win) {
+    cflags_c += [ "-std:c11" ]
+  } else if (is_clang) {
+    cflags_c += [ "-std=c11" ]
   }
-  if (target_cpu != "x64" || target_os == "android") {
+  if (target_cpu != "x64" || target_os == "android" ||
+      (is_win && is_sk4d_build)) {
     defines = [
       "SKCMS_DISABLE_HSW",
       "SKCMS_DISABLE_SKX",
