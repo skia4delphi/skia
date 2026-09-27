@@ -9,20 +9,6 @@
 #include "include/c/sk4d_pathbuilder.h"
 #include "src/c/sk4d_mapping.h"
 
-namespace {
-
-void legacy_move_to(SkPathBuilder* path_builder, SkPoint point) {
-    // Before m151, consecutive moveTo calls retained the preceding empty contour.
-    // m151 rejects consecutive move verbs, so close that empty contour first. This
-    // keeps its point in the bounds without adding drawable geometry.
-    if (!path_builder->verbs().empty() && path_builder->verbs().back() == SkPathVerb::kMove) {
-        path_builder->close();
-    }
-    path_builder->moveTo(point);
-}
-
-}  // namespace
-
 void sk4d_pathbuilder_add_arc(sk_pathbuilder_t* self, const sk_rect_t* oval, float start_angle, float sweep_angle) {
     AsPathBuilder(self)->addArc(AsRect(*oval), start_angle, sweep_angle);
 }
@@ -57,11 +43,7 @@ void sk4d_pathbuilder_arc_to(sk_pathbuilder_t* self, const sk_point_t* radius, f
 }
 
 void sk4d_pathbuilder_arc_to2(sk_pathbuilder_t* self, const sk_rect_t* oval, float start_angle, float sweep_angle, bool force_move_to) {
-    auto path_builder = AsPathBuilder(self);
-    if (force_move_to && !path_builder->verbs().empty() && path_builder->verbs().back() == SkPathVerb::kMove) {
-        path_builder->close();
-    }
-    path_builder->arcTo(AsRect(*oval), start_angle, sweep_angle, force_move_to);
+    AsPathBuilder(self)->arcTo(AsRect(*oval), start_angle, sweep_angle, force_move_to);
 }
 
 void sk4d_pathbuilder_arc_to3(sk_pathbuilder_t* self, const sk_point_t* point1, const sk_point_t* point2, float radius) {
@@ -113,7 +95,7 @@ void sk4d_pathbuilder_line_to(sk_pathbuilder_t* self, const sk_point_t* cpoint) 
 }
 
 void sk4d_pathbuilder_move_to(sk_pathbuilder_t* self, const sk_point_t* cpoint) {
-    legacy_move_to(AsPathBuilder(self), *AsPoint(cpoint));
+    AsPathBuilder(self)->moveTo(*AsPoint(cpoint));
 }
 
 void sk4d_pathbuilder_offset(sk_pathbuilder_t* self, float dx, float dy) {
