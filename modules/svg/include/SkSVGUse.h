@@ -34,6 +34,7 @@ public:
 
 protected:
     bool onPrepareToRender(SkSVGRenderContext*) const override;
+    bool isRenderLeaf(const SkSVGRenderContext&) const override;
     void onRender(const SkSVGRenderContext&) const override;
     SkPath onAsPath(const SkSVGRenderContext&) const override;
     SkRect onTransformableObjectBoundingBox(const SkSVGRenderContext&) const override;

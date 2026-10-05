@@ -67,9 +67,15 @@ SkRect SkSVGNode::objectBoundingBox(const SkSVGRenderContext& ctx) const {
     return this->onObjectBoundingBox(ctx);
 }
 
+bool SkSVGNode::IsInheritedPaintLeaf(const SkSVGNode& node) {
+    return !node.hasChildren() && node.tag() != SkSVGTag::kUse &&
+           !node.getFill().isValue() && !node.getStroke().isValue() &&
+           !node.getFilter().isValue();
+}
+
 bool SkSVGNode::onPrepareToRender(SkSVGRenderContext* ctx) const {
     ctx->applyPresentationAttributes(fPresentationAttributes,
-                                     this->hasChildren() ? 0 : SkSVGRenderContext::kLeaf);
+                                     this->isRenderLeaf(*ctx) ? SkSVGRenderContext::kLeaf : 0);
 
     // visibility:hidden and display:none disable rendering.
     // TODO: if display is not a value (true when display="inherit"), we currently

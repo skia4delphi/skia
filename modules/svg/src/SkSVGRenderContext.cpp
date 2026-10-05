@@ -202,7 +202,10 @@ SkSVGRenderContext::SkSVGRenderContext(const SkSVGRenderContext& other, const Sk
                              *other.fLengthContext,
                              *other.fPresentationContext,
                              OBBScope{node, this},
-                             other.fTextShapingFactory) {}
+                             other.fTextShapingFactory) {
+    // Only a leaf <use> renders a node with a deferred opacity: its referenced leaf.
+    fDeferredPaintOpacity = other.fDeferredPaintOpacity;
+}
 
 SkSVGRenderContext::~SkSVGRenderContext() {
     fCanvas->restoreToCount(fCanvasSaveCount);

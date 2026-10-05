@@ -42,6 +42,12 @@ bool SkSVGUse::onPrepareToRender(SkSVGRenderContext* ctx) const {
     return true;
 }
 
+bool SkSVGUse::isRenderLeaf(const SkSVGRenderContext& ctx) const {
+    // The opacity deferred by this node is applied by the referenced node's paint.
+    const auto ref = ctx.findNodeById(fHref);
+    return ref && IsInheritedPaintLeaf(*ref);
+}
+
 void SkSVGUse::onRender(const SkSVGRenderContext& ctx) const {
     const auto ref = ctx.findNodeById(fHref);
     if (!ref) {

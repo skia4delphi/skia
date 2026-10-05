@@ -181,6 +181,12 @@ protected:
 
     virtual bool hasChildren() const { return false; }
 
+    // Whether the node renders as a single draw, so its opacity can be applied to the paint.
+    virtual bool isRenderLeaf(const SkSVGRenderContext&) const { return !this->hasChildren(); }
+
+    // Whether the node, when referenced by <use>, renders as a single draw with the inherited paint.
+    static bool IsInheritedPaintLeaf(const SkSVGNode&);
+
     virtual SkRect onObjectBoundingBox(const SkSVGRenderContext&) const {
         return SkRect::MakeEmpty();
     }
