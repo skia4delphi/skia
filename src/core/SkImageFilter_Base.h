@@ -11,6 +11,9 @@
 #include "include/core/SkColorSpace.h"
 #include "include/core/SkImageFilter.h"
 #include "include/core/SkImageInfo.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkTileMode.h"
 #include "include/private/SkTArray.h"
 #include "include/private/SkTemplates.h"
 
@@ -127,6 +130,28 @@ public:
     using MatrixCapability = skif::MatrixCapability;
     MatrixCapability getCTMCapability() const;
 
+    struct BlurRec {
+        SkSize     fSigma;
+        SkTileMode fTileMode;
+    };
+    /**
+     *  If this node in the DAG is a blur of its input, return true and (if not null) fill in the
+     *  provided BlurRec, whose sigma is in parameter space. Otherwise return false and ignore the
+     *  BlurRec parameter.
+     */
+    bool asABlur(BlurRec* rec) const { return this->onAsABlur(rec); }
+
+    struct CropRec {
+        SkRect     fRect;
+        SkTileMode fTileMode;
+    };
+    /**
+     *  If this node in the DAG is a crop of its input, return true and (if not null) fill in the
+     *  provided CropRec, whose rect is in parameter space. Otherwise return false and ignore the
+     *  CropRec parameter.
+     */
+    bool asACrop(CropRec* rec) const { return this->onAsACrop(rec); }
+
     uint32_t uniqueID() const { return fUniqueID; }
 
     static SkFlattenable::Type GetFlattenableType() {
@@ -215,6 +240,16 @@ private:
      *  w/o cropping constraints.
      */
     virtual bool onIsColorFilterNode(SkColorFilter** /*filterPtr*/) const { return false; }
+
+    /**
+     *  Return true (and fill in the rec) if this node in the DAG is just a blur of its input.
+     */
+    virtual bool onAsABlur(BlurRec*) const { return false; }
+
+    /**
+     *  Return true (and fill in the rec) if this node in the DAG is just a crop of its input.
+     */
+    virtual bool onAsACrop(CropRec*) const { return false; }
 
     /**
      *  Return the most complex matrix type this filter can support (mapping from its parameter

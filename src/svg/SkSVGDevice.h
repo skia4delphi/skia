@@ -11,6 +11,7 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSpan.h"
+#include "include/core/SkString.h"
 #include "include/core/SkTypes.h"
 #include "include/private/SkTArray.h"
 #include "include/private/SkTypeTraits.h"
@@ -35,6 +36,7 @@ class SkMesh;
 class SkPaint;
 class SkPath;
 class SkRRect;
+class SkSpecialImage;
 class SkVertices;
 class SkXMLWriter;
 struct SkISize;
@@ -63,8 +65,15 @@ public:
     void drawVertices(const SkVertices*, sk_sp<SkBlender>, const SkPaint&, bool) override;
     void drawMesh(const SkMesh&, sk_sp<SkBlender>, const SkPaint&) override;
 
+    sk_sp<SkDevice> createDevice(const CreateInfo&, const SkPaint* layerPaint) override;
+    void drawDevice(SkDevice*, const SkSamplingOptions&, const SkPaint&) override;
+    void drawSpecial(SkSpecialImage*, const SkMatrix& localToDevice, const SkSamplingOptions&,
+                     const SkPaint&, SkCanvas::SrcRectConstraint) override;
+
 private:
     SkSVGDevice(const SkISize& size, std::unique_ptr<SkXMLWriter>, SkSVGCanvas::Options);
+    // Layer device, which writes its content in place through the parent's writer.
+    SkSVGDevice(const SkISize& size, SkSVGDevice* parent);
     ~SkSVGDevice() override;
 
     void onDrawGlyphRunList(SkCanvas*, const sktext::GlyphRunList&, const SkPaint& paint) override;
@@ -74,14 +83,28 @@ private:
 
     void syncClipStack(const SkClipStack&);
 
+    // All devices write in the root device space, so layer content needs no extra transform.
+    SkMatrix localToGlobal(const SkMatrix& localToDevice) const;
+    SkRect globalClipBounds() const;
+
+    void closeActiveLayer();
+    void closeLayer();
+
     SkParsePath::PathEncoding pathEncoding() const;
 
     class AutoElement;
     class ResourceBucket;
 
-    const std::unique_ptr<SkXMLWriter>    fWriter;
-    const std::unique_ptr<ResourceBucket> fResourceBucket;
-    const SkSVGCanvas::Options            fOpts;
+    std::unique_ptr<SkXMLWriter>    fOwnedWriter;
+    SkXMLWriter*                    fWriter;
+    std::unique_ptr<ResourceBucket> fOwnedResourceBucket;
+    ResourceBucket*                 fResourceBucket;
+    const SkSVGCanvas::Options      fOpts;
+
+    SkSVGDevice* fParent      = nullptr;
+    SkSVGDevice* fActiveLayer = nullptr;
+    // Mask written by the last luminance layer, applied by the next kSrcIn layer.
+    SkString     fPendingMaskID;
 
     struct ClipRec {
         std::unique_ptr<AutoElement> fClipPathElem;

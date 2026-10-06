@@ -54,6 +54,13 @@ private:
     // TODO(skbug.com/40045513): Automatically infer this from the output bounds being finite.
     bool ignoreInputsAffectsTransparentBlack() const override { return true; }
 
+    bool onAsACrop(CropRec* rec) const override {
+        if (rec) {
+            *rec = {SkRect(fCropRect), fTileMode};
+        }
+        return true;
+    }
+
     skif::FilterResult onFilterImage(const skif::Context& context) const override;
 
     skif::LayerSpace<SkIRect> onGetInputLayerBounds(

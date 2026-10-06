@@ -48,6 +48,13 @@ private:
     friend void ::SkRegisterBlurImageFilterFlattenable();
     SK_FLATTENABLE_HOOKS(SkBlurImageFilter)
 
+    bool onAsABlur(BlurRec* rec) const override {
+        if (rec) {
+            *rec = {SkSize(fSigma), fLegacyTileMode};
+        }
+        return true;
+    }
+
     skif::FilterResult onFilterImage(const skif::Context& context) const override;
 
     skif::LayerSpace<SkIRect> onGetInputLayerBounds(

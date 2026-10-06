@@ -45,11 +45,17 @@
 #include "include/svg/SkSVGCanvas.h"
 #include "src/core/SkAnnotationKeys.h"
 #include "src/core/SkBase64.h"
+#include "src/core/SkBitmapDevice.h"
 #include "src/core/SkClipStack.h"
 #include "src/core/SkDevice.h"
 #include "src/core/SkFontPriv.h"
+#include "src/core/SkImageFilter_Base.h"
+#include "src/core/SkKnownRuntimeEffects.h"
+#include "src/core/SkSpecialImage.h"
 #include "src/core/SkTHash.h"
 #include "src/core/SkTLazy.h"
+#include "src/effects/colorfilters/SkColorFilterBase.h"
+#include "src/effects/colorfilters/SkComposeColorFilter.h"
 #include "src/image/SkImage_Base.h"
 #include "src/shaders/SkColorShader.h"
 #include "src/shaders/SkShaderBase.h"
@@ -58,6 +64,7 @@
 
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -260,20 +267,28 @@ public:
       return SkStringPrintf("pattern_%u", fPatternCount++);
     }
 
+    SkString addMask() { return SkStringPrintf("mask_%u", fMaskCount++); }
+
+    SkString addFilter() { return SkStringPrintf("filter_%u", fFilterCount++); }
+
 private:
     uint32_t fGradientCount;
     uint32_t fPathCount;
     uint32_t fImageCount;
     uint32_t fPatternCount;
     uint32_t fColorFilterCount;
+    uint32_t fMaskCount = 0;
+    uint32_t fFilterCount = 0;
 };
 
 struct SkSVGDevice::MxCp {
-    const SkMatrix* fMatrix;
-    const SkClipStack*  fClipStack;
+    SkMatrix           fMatrix;
+    const SkClipStack* fClipStack;
 
-    MxCp(const SkMatrix* mx, const SkClipStack* cs) : fMatrix(mx), fClipStack(cs) {}
-    MxCp(SkSVGDevice* device) : fMatrix(&device->localToDevice()), fClipStack(&device->cs()) {}
+    MxCp(const SkMatrix& mx, const SkClipStack* cs) : fMatrix(mx), fClipStack(cs) {}
+    MxCp(SkSVGDevice* device)
+            : fMatrix(device->localToGlobal(device->localToDevice()))
+            , fClipStack(&device->cs()) {}
 };
 
 class SkSVGDevice::AutoElement : ::SkNoncopyable {
@@ -286,7 +301,7 @@ public:
     }
 
     AutoElement(const char name[], SkSVGDevice* svgdev)
-        : fWriter(svgdev->fWriter.get())
+        : fWriter(svgdev->fWriter)
         , fPngEncoder(svgdev->fOpts.pngEncoder)
         , fResourceBucket(nullptr) {
         fWriter->startElement(name);
@@ -294,7 +309,7 @@ public:
 
     AutoElement(const char name[], SkSVGDevice* svgdev,
                 ResourceBucket* bucket, const MxCp& mc, const SkPaint& paint)
-        : fWriter(svgdev->fWriter.get())
+        : fWriter(svgdev->fWriter)
         , fPngEncoder(svgdev->fOpts.pngEncoder)
         , fResourceBucket(bucket) {
 
@@ -305,8 +320,8 @@ public:
 
         this->addPaint(paint, res);
 
-        if (!mc.fMatrix->isIdentity()) {
-            this->addAttribute("transform", svg_transform(*mc.fMatrix));
+        if (!mc.fMatrix.isIdentity()) {
+            this->addAttribute("transform", svg_transform(mc.fMatrix));
         }
     }
 
@@ -794,8 +809,10 @@ SkSVGDevice::SkSVGDevice(const SkISize& size,
         : SkClipStackDevice(
             SkImageInfo::MakeUnknown(size.fWidth, size.fHeight),
             SkSurfaceProps())
-        , fWriter(std::move(writer))
-        , fResourceBucket(new ResourceBucket)
+        , fOwnedWriter(std::move(writer))
+        , fWriter(fOwnedWriter.get())
+        , fOwnedResourceBucket(new ResourceBucket)
+        , fResourceBucket(fOwnedResourceBucket.get())
         , fOpts(opts)
 {
     SkASSERT(fWriter);
@@ -811,11 +828,275 @@ SkSVGDevice::SkSVGDevice(const SkISize& size,
     fRootElement->addAttribute("height", size.height());
 }
 
+SkSVGDevice::SkSVGDevice(const SkISize& size, SkSVGDevice* parent)
+        : SkClipStackDevice(
+            SkImageInfo::MakeUnknown(size.fWidth, size.fHeight),
+            SkSurfaceProps())
+        , fWriter(parent->fWriter)
+        , fResourceBucket(parent->fResourceBucket)
+        , fOpts(parent->fOpts)
+        , fParent(parent) {}
+
 SkSVGDevice::~SkSVGDevice() {
+    this->closeActiveLayer();
     // Pop order is important.
     while (!fClipStack.empty()) {
         fClipStack.pop_back();
     }
+    if (fParent && fParent->fActiveLayer == this) {
+        fParent->fActiveLayer = nullptr;
+    }
+}
+
+SkMatrix SkSVGDevice::localToGlobal(const SkMatrix& localToDevice) const {
+    return fParent ? SkMatrix::Concat(this->deviceToGlobal().asM33(), localToDevice)
+                   : localToDevice;
+}
+
+SkRect SkSVGDevice::globalClipBounds() const {
+    const SkRect bounds = SkRect::Make(this->devClipBounds());
+    return fParent ? this->deviceToGlobal().asM33().mapRect(bounds) : bounds;
+}
+
+void SkSVGDevice::closeActiveLayer() {
+    if (fActiveLayer) {
+        fActiveLayer->closeLayer();
+    }
+}
+
+void SkSVGDevice::closeLayer() {
+    SkASSERT(fParent);
+    this->closeActiveLayer();
+    while (!fClipStack.empty()) {
+        fClipStack.pop_back();
+    }
+    fRootElement.reset();
+    if (fParent->fActiveLayer == this) {
+        fParent->fActiveLayer = nullptr;
+    }
+}
+
+namespace {
+
+enum class LayerType {
+    kGroup,
+    kMask,
+    kBlur,
+};
+
+bool contains_luma(const SkColorFilter* cf) {
+    if (!cf) {
+        return false;
+    }
+    const auto* cfb = as_CFB(cf);
+    if (cfb->type() == SkColorFilterBase::Type::kCompose) {
+        const auto* compose = static_cast<const SkComposeColorFilter*>(cfb);
+        return contains_luma(compose->outer().get()) || contains_luma(compose->inner().get());
+    }
+    return cfb->asRuntimeEffect() ==
+           SkKnownRuntimeEffects::GetKnownRuntimeEffect(SkKnownRuntimeEffects::StableKey::kLuma);
+}
+
+// An SVG feGaussianBlur of SourceGraphic, in the local space at the time the layer was saved.
+struct SourceBlur {
+    SkSize fSigma = SkSize::MakeEmpty();
+    std::optional<SkRect> fRegion;
+    bool fLinearRGB = false;
+};
+
+bool is_color_filter_node(const SkImageFilter* filter, const SkColorFilter* cf) {
+    SkColorFilter* nodeCF = nullptr;
+    if (!filter || !filter->isColorFilterNode(&nodeCF)) {
+        return false;
+    }
+    sk_sp<SkColorFilter> ownedCF(nodeCF);
+    return nodeCF == cf;
+}
+
+// Matches the filter SkSVG builds for a blur of the layer content:
+//   [LinearToSRGBGamma] <- [decal Crop] <- decal Blur <- [SRGBToLinearGamma] <- source
+// where the gamma conversions are there when the blur is done in linearRGB.
+bool as_source_blur(const SkImageFilter* filter, SourceBlur* blur) {
+    // Both are singletons, so they can be compared by address.
+    const sk_sp<SkColorFilter> toSRGB = SkColorFilters::LinearToSRGBGamma();
+    const sk_sp<SkColorFilter> toLinear = SkColorFilters::SRGBToLinearGamma();
+
+    blur->fLinearRGB = is_color_filter_node(filter, toSRGB.get());
+    if (blur->fLinearRGB) {
+        filter = filter->getInput(0);
+    }
+
+    SkImageFilter_Base::CropRec crop;
+    if (filter && as_IFB(filter)->asACrop(&crop)) {
+        if (crop.fTileMode != SkTileMode::kDecal) {
+            return false;
+        }
+        blur->fRegion = crop.fRect;
+        filter = filter->getInput(0);
+    }
+
+    SkImageFilter_Base::BlurRec rec;
+    if (!filter || !as_IFB(filter)->asABlur(&rec) || rec.fTileMode != SkTileMode::kDecal) {
+        return false;
+    }
+    blur->fSigma = rec.fSigma;
+    filter = filter->getInput(0);
+
+    if (is_color_filter_node(filter, toLinear.get()) != blur->fLinearRGB) {
+        return false;
+    }
+    if (blur->fLinearRGB) {
+        filter = filter->getInput(0);
+    }
+    // A null input is the layer content.
+    return !filter;
+}
+
+// Returns false if the layer has effects without an SVG equivalent.
+bool classify_layer(const SkPaint* paint, LayerType* type, SourceBlur* blur) {
+    *type = LayerType::kGroup;
+    if (!paint) {
+        return true;
+    }
+    const std::optional<SkBlendMode> mode = paint->asBlendMode();
+    if (!mode || (*mode != SkBlendMode::kSrcOver && *mode != SkBlendMode::kSrcIn)) {
+        return false;
+    }
+    if (const SkColorFilter* cf = paint->getColorFilter()) {
+        // SkSVG renders mask content through a luminance color filter layer.
+        if (paint->getImageFilter() || !contains_luma(cf)) {
+            return false;
+        }
+        *type = LayerType::kMask;
+    } else if (const SkImageFilter* filter = paint->getImageFilter()) {
+        if (!as_source_blur(filter, blur)) {
+            return false;
+        }
+        *type = LayerType::kBlur;
+    }
+    return true;
+}
+
+}  // namespace
+
+sk_sp<SkDevice> SkSVGDevice::createDevice(const CreateInfo& info, const SkPaint* layerPaint) {
+    LayerType type;
+    SourceBlur blur;
+    if (!classify_layer(layerPaint, &type, &blur)) {
+        // As SkPDFDevice does, rasterize the layers that can't be expressed natively. They are
+        // drawn back through drawDevice() or drawSpecial().
+        return SkBitmapDevice::Create(info.fInfo, SkSurfaceProps());
+    }
+
+    // The layer content is written in place, so our pending clips must be written first.
+    this->syncClipStack(this->cs());
+
+    // Device clip bounds are a conservative region for masks and filters, since nothing is drawn
+    // outside them.
+    const SkRect clipRegion = this->globalClipBounds();
+    auto add_region_attributes = [](AutoElement* elem, const SkRect& region) {
+        elem->addAttribute("x", region.x());
+        elem->addAttribute("y", region.y());
+        elem->addAttribute("width", region.width());
+        elem->addAttribute("height", region.height());
+    };
+    sk_sp<SkSVGDevice> layer(new SkSVGDevice(info.fInfo.dimensions(), this));
+
+    switch (type) {
+        case LayerType::kMask: {
+            const SkString maskID = fResourceBucket->addMask();
+            layer->fRootElement = std::make_unique<AutoElement>("mask", this);
+            layer->fRootElement->addAttribute("id", maskID);
+            layer->fRootElement->addAttribute("maskUnits", "userSpaceOnUse");
+            add_region_attributes(layer->fRootElement.get(), clipRegion);
+            fPendingMaskID = maskID;
+        } break;
+        case LayerType::kBlur: {
+            const SkMatrix ctm = this->localToGlobal(this->localToDevice());
+            const SkScalar sx = ctm.mapVector(blur.fSigma.width(), 0).length();
+            const SkScalar sy = ctm.mapVector(0, blur.fSigma.height()).length();
+            SkRect region = clipRegion;
+            if (blur.fRegion && !region.intersect(ctm.mapRect(*blur.fRegion))) {
+                region.setEmpty();
+            }
+
+            const SkString filterID = fResourceBucket->addFilter();
+            {
+                AutoElement filter("filter", this);
+                filter.addAttribute("id", filterID);
+                filter.addAttribute("filterUnits", "userSpaceOnUse");
+                add_region_attributes(&filter, region);
+                filter.addAttribute("color-interpolation-filters",
+                                    blur.fLinearRGB ? "linearRGB" : "sRGB");
+                {
+                    AutoElement feBlur("feGaussianBlur", filter);
+                    feBlur.addAttribute("stdDeviation", SkStringPrintf("%g %g", sx, sy));
+                }
+            }
+            layer->fRootElement = std::make_unique<AutoElement>("g", this);
+            layer->fRootElement->addAttribute("filter", SkStringPrintf("url(#%s)", filterID.c_str()));
+        } break;
+        case LayerType::kGroup: {
+            layer->fRootElement = std::make_unique<AutoElement>("g", this);
+            if (layerPaint && layerPaint->asBlendMode() == SkBlendMode::kSrcIn &&
+                !fPendingMaskID.isEmpty()) {
+                layer->fRootElement->addAttribute(
+                        "mask", SkStringPrintf("url(#%s)", fPendingMaskID.c_str()));
+                fPendingMaskID.reset();
+            }
+        } break;
+    }
+
+    if (type != LayerType::kMask && layerPaint && layerPaint->getAlpha() != SK_AlphaOPAQUE) {
+        layer->fRootElement->addAttribute("opacity", layerPaint->getAlphaf());
+    }
+
+    fActiveLayer = layer.get();
+    return layer;
+}
+
+void SkSVGDevice::drawDevice(SkDevice* device,
+                             const SkSamplingOptions& sampling,
+                             const SkPaint& paint) {
+    SkPixmap pixmap;
+    if (device->peekPixels(&pixmap)) {
+        // A rasterized layer from createDevice().
+        this->SkClipStackDevice::drawDevice(device, sampling, paint);
+        return;
+    }
+    // Vector layers were already written in place, they only need to be closed.
+    static_cast<SkSVGDevice*>(device)->closeLayer();
+}
+
+void SkSVGDevice::drawSpecial(SkSpecialImage* image,
+                              const SkMatrix& localToDevice,
+                              const SkSamplingOptions&,
+                              const SkPaint& paint,
+                              SkCanvas::SrcRectConstraint) {
+    SkBitmap bm;
+    if (!SkSpecialImages::AsBitmap(image, &bm)) {
+        return;
+    }
+
+    // Image filters often defer a color filter to this paint, and neither it nor the paint alpha
+    // can be expressed on an SVG image, so they are applied to the pixels.
+    SkTCopyOnFirstWrite<SkPaint> imagePaint(paint);
+    if (paint.getColorFilter() || paint.getAlpha() != SK_AlphaOPAQUE) {
+        SkBitmap filtered;
+        if (!filtered.tryAllocN32Pixels(bm.width(), bm.height())) {
+            return;
+        }
+        filtered.eraseColor(SK_ColorTRANSPARENT);
+        SkPaint filterPaint;
+        filterPaint.setColorFilter(paint.refColorFilter());
+        filterPaint.setAlphaf(paint.getAlphaf());
+        SkCanvas(filtered).drawImage(bm.asImage(), 0, 0, SkSamplingOptions(), &filterPaint);
+        bm = filtered;
+        imagePaint.writable()->setColorFilter(nullptr);
+        imagePaint.writable()->setAlpha(SK_AlphaOPAQUE);
+    }
+
+    this->drawBitmapCommon(MxCp(this->localToGlobal(localToDevice), &this->cs()), bm, *imagePaint);
 }
 
 SkParsePath::PathEncoding SkSVGDevice::pathEncoding() const {
@@ -825,6 +1106,9 @@ SkParsePath::PathEncoding SkSVGDevice::pathEncoding() const {
 }
 
 void SkSVGDevice::syncClipStack(const SkClipStack& cs) {
+    // A layer still open from an earlier save would otherwise capture the elements written now.
+    this->closeActiveLayer();
+
     SkClipStack::B2TIter iter(cs);
 
     const SkClipStack::Element* elem;
@@ -843,7 +1127,9 @@ void SkSVGDevice::syncClipStack(const SkClipStack& cs) {
         fClipStack.pop_back();
     }
 
-    auto define_clip = [this](const SkClipStack::Element* e) {
+    const SkMatrix deviceToGlobal = this->localToGlobal(SkMatrix::I());
+
+    auto define_clip = [this, &deviceToGlobal](const SkClipStack::Element* e) {
         const auto cid = SkStringPrintf("cl_%x", e->getGenID());
 
         AutoElement clip_path("clipPath", this);
@@ -851,7 +1137,21 @@ void SkSVGDevice::syncClipStack(const SkClipStack& cs) {
 
         // TODO: handle non-intersect clips.
 
-        switch (e->getDeviceSpaceType()) {
+        const auto type = e->getDeviceSpaceType();
+        if (!deviceToGlobal.isIdentity() &&
+            type != SkClipStack::Element::DeviceSpaceType::kEmpty &&
+            type != SkClipStack::Element::DeviceSpaceType::kShader) {
+            // Layer clips are in the layer device space.
+            const SkPath p = e->asDeviceSpacePath().makeTransform(deviceToGlobal);
+            AutoElement path("path", this);
+            path.addPathAttributes(p, this->pathEncoding());
+            if (p.getFillType() == SkPathFillType::kEvenOdd) {
+                path.addAttribute("clip-rule", "evenodd");
+            }
+            return cid;
+        }
+
+        switch (type) {
         case SkClipStack::Element::DeviceSpaceType::kEmpty: {
             // TODO: can we skip this?
             AutoElement rect("rect", this);
@@ -900,7 +1200,7 @@ void SkSVGDevice::syncClipStack(const SkClipStack& cs) {
 }
 
 void SkSVGDevice::drawPaint(const SkPaint& paint) {
-    AutoElement rect("rect", this, fResourceBucket.get(), MxCp(this), paint);
+    AutoElement rect("rect", this, fResourceBucket, MxCp(this), paint);
     rect.addRectAttributes(SkRect::MakeWH(SkIntToScalar(this->width()),
                                           SkIntToScalar(this->height())));
 }
@@ -912,6 +1212,7 @@ void SkSVGDevice::drawAnnotation(const SkRect& rect, const char key[], SkData* v
 
     if (!strcmp(SkAnnotationKeys::URL_Key(), key) ||
         !strcmp(SkAnnotationKeys::Link_Named_Dest_Key(), key)) {
+        this->closeActiveLayer();
         this->cs().save();
         this->cs().clipRect(rect, this->localToDevice(), SkClipOp::kIntersect, true);
         SkRect transformedRect = this->cs().bounds(this->getGlobalBounds());
@@ -968,11 +1269,11 @@ void SkSVGDevice::drawRect(const SkRect& r, const SkPaint& paint) {
 
     std::unique_ptr<AutoElement> svg;
     if (RequiresViewportReset(paint)) {
-      svg = std::make_unique<AutoElement>("svg", this, fResourceBucket.get(), MxCp(this), paint);
+      svg = std::make_unique<AutoElement>("svg", this, fResourceBucket, MxCp(this), paint);
       svg->addRectAttributes(r);
     }
 
-    AutoElement rect("rect", this, fResourceBucket.get(), MxCp(this), paint);
+    AutoElement rect("rect", this, fResourceBucket, MxCp(this), paint);
 
     if (svg) {
       rect.addAttribute("x", 0);
@@ -990,7 +1291,7 @@ void SkSVGDevice::drawOval(const SkRect& oval, const SkPaint& paint) {
         return;
     }
 
-    AutoElement ellipse("ellipse", this, fResourceBucket.get(), MxCp(this), paint);
+    AutoElement ellipse("ellipse", this, fResourceBucket, MxCp(this), paint);
     ellipse.addAttribute("cx", oval.centerX());
     ellipse.addAttribute("cy", oval.centerY());
     ellipse.addAttribute("rx", oval.width() / 2);
@@ -1003,7 +1304,7 @@ void SkSVGDevice::drawRRect(const SkRRect& rr, const SkPaint& paint) {
         return;
     }
 
-    AutoElement elem("path", this, fResourceBucket.get(), MxCp(this), paint);
+    AutoElement elem("path", this, fResourceBucket, MxCp(this), paint);
     elem.addPathAttributes(SkPath::RRect(rr), this->pathEncoding());
 }
 
@@ -1036,7 +1337,7 @@ void SkSVGDevice::drawPath(const SkPath& path, const SkPaint& paint) {
     }
 
     // Create path element.
-    AutoElement elem("path", this, fResourceBucket.get(), MxCp(this), *path_paint);
+    AutoElement elem("path", this, fResourceBucket, MxCp(this), *path_paint);
     elem.addPathAttributes(*pathPtr, this->pathEncoding());
 
     // TODO: inverse fill types?
@@ -1050,6 +1351,9 @@ void SkSVGDevice::drawBitmapCommon(const MxCp& mc, const SkBitmap& bm, const SkP
     if (!pngData) {
         return;
     }
+
+    // The <defs> below are written before the element that syncs the clip stack.
+    this->closeActiveLayer();
 
     size_t b64Size = SkBase64::EncodedSize(pngData->size());
     AutoTMalloc<char> b64Data(b64Size);
@@ -1071,7 +1375,7 @@ void SkSVGDevice::drawBitmapCommon(const MxCp& mc, const SkBitmap& bm, const SkP
     }
 
     {
-        AutoElement imageUse("use", this, fResourceBucket.get(), mc, paint);
+        AutoElement imageUse("use", this, fResourceBucket, mc, paint);
         imageUse.addAttribute("xlink:href", SkStringPrintf("#%s", imageID.c_str()));
     }
 }
@@ -1096,7 +1400,7 @@ void SkSVGDevice::drawImageRect(const SkImage* image, const SkRect* src, const S
                             * SkMatrix::RectToRectOrIdentity(src ? *src : SkRect::Make(bm.bounds()),
                                                              dst);
 
-    drawBitmapCommon(MxCp(&adjustedMatrix, cs), bm, paint);
+    drawBitmapCommon(MxCp(this->localToGlobal(adjustedMatrix), cs), bm, paint);
 }
 
 class SVGTextBuilder : SkNoncopyable {
@@ -1209,7 +1513,7 @@ void SkSVGDevice::onDrawGlyphRunList(SkCanvas* canvas,
 
     // Emit one <text> element for each run.
     for (auto& glyphRun : glyphRunList) {
-        AutoElement elem("text", this, fResourceBucket.get(), MxCp(this), paint);
+        AutoElement elem("text", this, fResourceBucket, MxCp(this), paint);
         elem.addTextAttributes(glyphRun.font());
 
         SVGTextBuilder builder(glyphRunList.origin(), glyphRun);
