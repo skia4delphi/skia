@@ -54,7 +54,7 @@ sk_surface_t* sk4d_surface_make_from_mtk_view(gr_directcontext_t* context, gr_mt
     SK4D_ONLY_METAL(
         SkSurfaceProps surface_props;
         if (props)
-            SkSurfaceProps surface_props = AsSurfaceProps(props);)
+            surface_props = AsSurfaceProps(props);)
     return SK4D_ONLY_METAL(ToSurface(SkSurfaces::WrapMTKView(AsGrDirectContext(context), view, AsGrSurfaceOrigin(origin), sample_count, AsColorType(color_type), sk_ref_sp(AsColorSpace(color_space)), (props) ? &surface_props : nullptr).release()), nullptr);
 }
 
@@ -62,7 +62,7 @@ sk_surface_t* sk4d_surface_make_from_render_target(gr_directcontext_t* context, 
     SK4D_ONLY_GPU(
         SkSurfaceProps surface_props;
         if (props)
-            SkSurfaceProps surface_props = AsSurfaceProps(props);)
+            surface_props = AsSurfaceProps(props);)
     return SK4D_ONLY_GPU(ToSurface(SkSurfaces::WrapBackendRenderTarget(AsGrDirectContext(context), AsGrBackendRenderTarget(*render_target), AsGrSurfaceOrigin(origin), AsColorType(color_type), sk_ref_sp(AsColorSpace(color_space)), (props) ? &surface_props : nullptr).release()), nullptr);
 }
 
@@ -70,7 +70,7 @@ sk_surface_t* sk4d_surface_make_from_texture(gr_directcontext_t* context, const 
     SK4D_ONLY_GPU(
         SkSurfaceProps surface_props;
         if (props)
-            SkSurfaceProps surface_props = AsSurfaceProps(props);)
+            surface_props = AsSurfaceProps(props);)
     return SK4D_ONLY_GPU(ToSurface(SkSurfaces::WrapBackendTexture(AsGrDirectContext(context), AsGrBackendTexture(*texture), AsGrSurfaceOrigin(origin), sample_count, AsColorType(color_type), sk_ref_sp(AsColorSpace(color_space)), (props) ? &surface_props : nullptr).release()), nullptr);
 }
 
@@ -85,14 +85,14 @@ sk_image_t* sk4d_surface_make_image_snapshot2(sk_surface_t* self, const sk_irect
 sk_surface_t* sk4d_surface_make_raster(const sk_imageinfo_t* image_info, size_t row_bytes, const sk_surfaceprops_t* props) {
     SkSurfaceProps surface_props;
     if (props)
-        SkSurfaceProps surface_props = AsSurfaceProps(props);
+        surface_props = AsSurfaceProps(props);
     return ToSurface(SkSurfaces::Raster(AsImageInfo(image_info), row_bytes, (props) ? &surface_props : nullptr).release());
 }
 
 sk_surface_t* sk4d_surface_make_raster_direct(const sk_pixmap_t* pixmap, sk_surface_raster_release_proc proc, void* proc_context, const sk_surfaceprops_t* props) {
     SkSurfaceProps surface_props;
     if (props)
-        SkSurfaceProps surface_props = AsSurfaceProps(props);
+        surface_props = AsSurfaceProps(props);
     return ToSurface(SkSurfaces::WrapPixels(AsPixmap(pixmap)->info(), AsPixmap(pixmap)->writable_addr(), AsPixmap(pixmap)->rowBytes(), proc, proc_context, (props) ? &surface_props : nullptr, true).release());
 }
 
@@ -100,7 +100,7 @@ sk_surface_t* sk4d_surface_make_render_target(gr_directcontext_t* context, bool 
     SK4D_ONLY_GPU(
         SkSurfaceProps surface_props;
         if (props)
-            SkSurfaceProps surface_props = AsSurfaceProps(props);)
+            surface_props = AsSurfaceProps(props);)
     return SK4D_ONLY_GPU(ToSurface(SkSurfaces::RenderTarget(AsGrDirectContext(context), AsBudgeted(is_budgeted), AsImageInfo(image_info), sample_count, AsGrSurfaceOrigin(origin), (props) ? &surface_props : nullptr, should_create_with_mips).release()), nullptr);
 }
 

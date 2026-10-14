@@ -214,7 +214,7 @@ int32_t sk4d_canvas_get_save_count(const sk_canvas_t* self) {
 sk_surface_t* sk4d_canvas_make_surface(sk_canvas_t* self, const sk_imageinfo_t* image_info, const sk_surfaceprops_t* surface_props) {
     SkSurfaceProps props;
     if (surface_props)
-        SkSurfaceProps props = AsSurfaceProps(surface_props);
+        props = AsSurfaceProps(surface_props);
     return ToSurface(AsCanvas(self)->makeSurface(AsImageInfo(image_info), (surface_props) ? &props : nullptr).release());
 }
 
