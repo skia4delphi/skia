@@ -9,7 +9,19 @@
 #include <memory>
 
 #include "include/c/sk4d_colorspace.h"
+#include "include/core/SkData.h"
+#include "include/encode/SkICC.h"
 #include "src/c/sk4d_mapping.h"
+
+namespace {
+
+// skcms keeps pointers into the ICC bytes instead of copying them, so the
+// profile has to own those bytes.
+struct OwnedICCProfile : skcms_ICCProfile {
+    sk_sp<SkData> data;
+};
+
+}  // namespace
 
 bool sk4d_colorspace_gamma_close_to_srgb(const sk_colorspace_t* self) {
     return AsColorSpace(self)->gammaCloseToSRGB();
@@ -60,8 +72,15 @@ void sk4d_colorspace_ref(const sk_colorspace_t* self) {
 }
 
 sk_colorspaceiccprofile_t* sk4d_colorspace_to_profile(const sk_colorspace_t* self) {
-    auto r = std::make_unique<skcms_ICCProfile>();
+    auto r = std::make_unique<OwnedICCProfile>();
     AsColorSpace(self)->toProfile(r.get());
+    skcms_TransferFunction transfer_function;
+    AsColorSpace(self)->transferFn(&transfer_function);
+    r->data = SkWriteICCProfile(transfer_function, r->toXYZD50);
+    if (r->data) {
+        r->buffer = r->data->bytes();
+        r->size   = static_cast<uint32_t>(r->data->size());
+    }
     return ToColorSpaceICCProfile(r.release());
 }
 
@@ -74,7 +93,7 @@ void sk4d_colorspace_unref(const sk_colorspace_t* self) {
 }
 
 void sk4d_colorspaceiccprofile_destroy(sk_colorspaceiccprofile_t* self) {
-    delete AsColorSpaceICCProfile(self);
+    delete static_cast<OwnedICCProfile*>(AsColorSpaceICCProfile(self));
 }
 
 const uint8_t* sk4d_colorspaceiccprofile_get_buffer(const sk_colorspaceiccprofile_t* self, uint32_t* size) {
@@ -84,8 +103,9 @@ const uint8_t* sk4d_colorspaceiccprofile_get_buffer(const sk_colorspaceiccprofil
 }
 
 sk_colorspaceiccprofile_t* sk4d_colorspaceiccprofile_make_with_parse(const void* buffer, size_t size) {
-    auto r = std::make_unique<skcms_ICCProfile>();
-    return skcms_Parse(buffer, size, r.get()) ? ToColorSpaceICCProfile(r.release()) : nullptr;
+    auto r = std::make_unique<OwnedICCProfile>();
+    r->data = SkData::MakeWithCopy(buffer, size);
+    return skcms_Parse(r->data->data(), r->data->size(), r.get()) ? ToColorSpaceICCProfile(r.release()) : nullptr;
 }
 
 bool sk4d_colorspaceiccprofile_to_xyz(const sk_colorspaceiccprofile_t* self, sk_colorspacexyz_t* dest) {

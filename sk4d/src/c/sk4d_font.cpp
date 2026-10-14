@@ -198,7 +198,7 @@ void sk4d_font_set_subpixel(sk_font_t* self, bool value) {
 }
 
 void sk4d_font_set_typeface(sk_font_t* self, sk_typeface_t* typeface) {
-    AsFont(self)->setTypeface(sk_ref_sp(AsTypeface(typeface)));
+    AsFont(self)->setTypeface(typeface ? sk_ref_sp(AsTypeface(typeface)) : Sk4DComp::MakeDefaultTypeface());
 }
 
 sk_glyphid_t sk4d_font_unichar_to_glyph(const sk_font_t* self, sk_unichar_t unichar) {

@@ -382,17 +382,17 @@ static inline sk_matrix_t ToMatrix(const SkMatrix& matrix) {
 
 static inline SkM44 AsMatrix44(const sk_matrix44_t* matrix) {
     return SkM44(
-        matrix->m_11, matrix->m_12, matrix->m_13, matrix->m_14,
-        matrix->m_21, matrix->m_22, matrix->m_23, matrix->m_24,
-        matrix->m_31, matrix->m_32, matrix->m_33, matrix->m_34,
-        matrix->m_41, matrix->m_42, matrix->m_43, matrix->m_44);
+        matrix->m_11, matrix->m_21, matrix->m_31, matrix->m_41,
+        matrix->m_12, matrix->m_22, matrix->m_32, matrix->m_42,
+        matrix->m_13, matrix->m_23, matrix->m_33, matrix->m_43,
+        matrix->m_14, matrix->m_24, matrix->m_34, matrix->m_44);
 }
 static inline sk_matrix44_t ToMatrix44(const SkM44& matrix) {
     return {
-        matrix.rc(0, 0), matrix.rc(0, 1), matrix.rc(0, 2), matrix.rc(0, 3),
-        matrix.rc(1, 0), matrix.rc(1, 1), matrix.rc(1, 2), matrix.rc(1, 3),
-        matrix.rc(2, 0), matrix.rc(2, 1), matrix.rc(2, 2), matrix.rc(2, 3),
-        matrix.rc(3, 0), matrix.rc(3, 1), matrix.rc(3, 2), matrix.rc(3, 3),
+        matrix.rc(0, 0), matrix.rc(1, 0), matrix.rc(2, 0), matrix.rc(3, 0),
+        matrix.rc(0, 1), matrix.rc(1, 1), matrix.rc(2, 1), matrix.rc(3, 1),
+        matrix.rc(0, 2), matrix.rc(1, 2), matrix.rc(2, 2), matrix.rc(3, 2),
+        matrix.rc(0, 3), matrix.rc(1, 3), matrix.rc(2, 3), matrix.rc(3, 3),
     };
 }
 
