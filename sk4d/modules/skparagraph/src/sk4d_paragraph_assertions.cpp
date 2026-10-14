@@ -12,6 +12,7 @@
 #include "modules/skparagraph/include/sk4d_paragraph_types.h"
 
 #include "include/core/SkRefCnt.h"
+#include "include/private/SkAlign.h"
 #include "modules/skparagraph/include/DartTypes.h"
 #include "modules/skparagraph/include/TextShadow.h"
 #include "modules/skparagraph/include/TextStyle.h"
@@ -44,14 +45,11 @@ static_assert(sizeof(skia::textlayout::TextBox)                == sizeof(sk_text
 static_assert(sizeof(skia::textlayout::TextShadow)             == sizeof(sk_textshadow_t),           "");
 
 // Custom mappings
+// The std::map size depends on the STL and on its iterator debugging level.
 #ifndef SK_ARCH_64BIT
-    static_assert(sizeof(skia::textlayout::LineMetrics) == 96, "");
+    static_assert(sizeof(skia::textlayout::LineMetrics) == SkAlignTo(84 + sizeof(std::map<size_t, skia::textlayout::StyleMetrics>), alignof(skia::textlayout::LineMetrics)), "");
 #else
-    #if defined(__arm64ec__) || defined(_M_ARM64EC)
-    static_assert(sizeof(skia::textlayout::LineMetrics) == 120, "");
-    #else
-    static_assert(sizeof(skia::textlayout::LineMetrics) == 128, "");
-    #endif
+    static_assert(sizeof(skia::textlayout::LineMetrics) == SkAlignTo(104 + sizeof(std::map<size_t, skia::textlayout::StyleMetrics>), alignof(skia::textlayout::LineMetrics)), "");
 #endif
 
 
