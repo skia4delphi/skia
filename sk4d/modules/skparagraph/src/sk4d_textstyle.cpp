@@ -59,6 +59,10 @@ uint32_t sk4d_textstyle_get_decorations(const sk_textstyle_t* self) {
     return ToTextDecoration(AsTextStyle(self)->getDecorationType());
 }
 
+sk_fontedging_t sk4d_textstyle_get_font_edging(const sk_textstyle_t* self) {
+    return ToFontEdging(AsTextStyle(self)->getFontEdging());
+}
+
 size_t sk4d_textstyle_get_font_families(const sk_textstyle_t* self, const char* result[]) {
     const auto& families = AsTextStyle(self)->getFontFamilies();
     if (result) {
@@ -68,6 +72,10 @@ size_t sk4d_textstyle_get_font_families(const sk_textstyle_t* self, const char* 
         }
     }
     return families.size();
+}
+
+sk_fonthinting_t sk4d_textstyle_get_font_hinting(const sk_textstyle_t* self) {
+    return ToFontHinting(AsTextStyle(self)->getFontHinting());
 }
 
 void sk4d_textstyle_get_font_metrics(const sk_textstyle_t* self, sk_fontmetrics_t* result) {
@@ -100,6 +108,10 @@ float sk4d_textstyle_get_letter_spacing(const sk_textstyle_t* self) {
 
 sk_string_t* sk4d_textstyle_get_locale(const sk_textstyle_t* self) {
     return ToString(new SkString(AsTextStyle(self)->getLocale()));
+}
+
+bool sk4d_textstyle_get_subpixel(const sk_textstyle_t* self) {
+    return AsTextStyle(self)->getSubpixel();
 }
 
 float sk4d_textstyle_get_word_spacing(const sk_textstyle_t* self) {
@@ -142,11 +154,19 @@ void sk4d_textstyle_set_decorations(sk_textstyle_t* self, uint32_t value) {
     AsTextStyle(self)->setDecoration(AsTextDecoration(value));
 }
 
+void sk4d_textstyle_set_font_edging(sk_textstyle_t* self, sk_fontedging_t value) {
+    AsTextStyle(self)->setFontEdging(AsFontEdging(value));
+}
+
 void sk4d_textstyle_set_font_families(sk_textstyle_t* self, const char* values[], size_t count) {
     std::vector<SkString> families(count);
     for (size_t i = 0; i < count; i++)
         families[i] = SkString(values[i]);
     AsTextStyle(self)->setFontFamilies(families);
+}
+
+void sk4d_textstyle_set_font_hinting(sk_textstyle_t* self, sk_fonthinting_t value) {
+    AsTextStyle(self)->setFontHinting(AsFontHinting(value));
 }
 
 void sk4d_textstyle_set_font_size(sk_textstyle_t* self, float value) {
@@ -176,6 +196,10 @@ void sk4d_textstyle_set_letter_spacing(sk_textstyle_t* self, float value) {
 
 void sk4d_textstyle_set_locale(sk_textstyle_t* self, const char value[]) {
     AsTextStyle(self)->setLocale(SkString(value));
+}
+
+void sk4d_textstyle_set_subpixel(sk_textstyle_t* self, bool value) {
+    AsTextStyle(self)->setSubpixel(value);
 }
 
 void sk4d_textstyle_set_word_spacing(sk_textstyle_t* self, float value) {
