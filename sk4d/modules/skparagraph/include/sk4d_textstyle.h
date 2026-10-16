@@ -27,6 +27,7 @@ SK4D_API float sk4d_textstyle_get_decoration_thickness(const sk_textstyle_t* sel
 SK4D_API uint32_t sk4d_textstyle_get_decorations(const sk_textstyle_t* self);
 SK4D_API sk_fontedging_t sk4d_textstyle_get_font_edging(const sk_textstyle_t* self);
 SK4D_API size_t sk4d_textstyle_get_font_families(const sk_textstyle_t* self, const char* result[]);
+SK4D_API size_t sk4d_textstyle_get_font_features(const sk_textstyle_t* self, sk_string_t* names[], int32_t values[]);
 SK4D_API sk_fonthinting_t sk4d_textstyle_get_font_hinting(const sk_textstyle_t* self);
 SK4D_API void sk4d_textstyle_get_font_metrics(const sk_textstyle_t* self, /*out*/ sk_fontmetrics_t* result);
 SK4D_API float sk4d_textstyle_get_font_size(const sk_textstyle_t* self);
@@ -36,6 +37,7 @@ SK4D_API bool sk4d_textstyle_get_half_leading(const sk_textstyle_t* self);
 SK4D_API float sk4d_textstyle_get_height_multiplier(const sk_textstyle_t* self);
 SK4D_API float sk4d_textstyle_get_letter_spacing(const sk_textstyle_t* self);
 SK4D_API sk_string_t* sk4d_textstyle_get_locale(const sk_textstyle_t* self);
+SK4D_API size_t sk4d_textstyle_get_shadows(const sk_textstyle_t* self, sk_textshadow_t result[]);
 SK4D_API bool sk4d_textstyle_get_subpixel(const sk_textstyle_t* self);
 SK4D_API float sk4d_textstyle_get_word_spacing(const sk_textstyle_t* self);
 SK4D_API bool sk4d_textstyle_is_equal(const sk_textstyle_t* self, const sk_textstyle_t* text_style);

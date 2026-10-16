@@ -74,6 +74,17 @@ size_t sk4d_textstyle_get_font_families(const sk_textstyle_t* self, const char* 
     return families.size();
 }
 
+size_t sk4d_textstyle_get_font_features(const sk_textstyle_t* self, sk_string_t* names[], int32_t values[]) {
+    const auto features = AsTextStyle(self)->getFontFeatures();
+    if (names && values) {
+        for (size_t i = 0; i < features.size(); i++) {
+            names[i]  = ToString(new SkString(features[i].fName));
+            values[i] = features[i].fValue;
+        }
+    }
+    return features.size();
+}
+
 sk_fonthinting_t sk4d_textstyle_get_font_hinting(const sk_textstyle_t* self) {
     return ToFontHinting(AsTextStyle(self)->getFontHinting());
 }
@@ -108,6 +119,15 @@ float sk4d_textstyle_get_letter_spacing(const sk_textstyle_t* self) {
 
 sk_string_t* sk4d_textstyle_get_locale(const sk_textstyle_t* self) {
     return ToString(new SkString(AsTextStyle(self)->getLocale()));
+}
+
+size_t sk4d_textstyle_get_shadows(const sk_textstyle_t* self, sk_textshadow_t result[]) {
+    const auto shadows = AsTextStyle(self)->getShadows();
+    if (result) {
+        for (size_t i = 0; i < shadows.size(); i++)
+            result[i] = ToTextShadow(shadows[i]);
+    }
+    return shadows.size();
 }
 
 bool sk4d_textstyle_get_subpixel(const sk_textstyle_t* self) {
