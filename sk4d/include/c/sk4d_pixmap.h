@@ -14,6 +14,7 @@
 SK4D_C_PLUS_PLUS_BEGIN_GUARD
 
 SK4D_API sk_pixmap_t* sk4d_pixmap_create(const sk_imageinfo_t* image_info, const void* pixels, size_t row_bytes);
+SK4D_API sk_pixmap_t* sk4d_pixmap_create2(void);
 SK4D_API void sk4d_pixmap_destroy(sk_pixmap_t* self);
 SK4D_API bool sk4d_pixmap_erase(const sk_pixmap_t* self, sk_color_t color, const sk_irect_t* area);
 SK4D_API bool sk4d_pixmap_erase2(const sk_pixmap_t* self, const sk_color4f_t* color, sk_colorspace_t* color_space, const sk_irect_t* area);

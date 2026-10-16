@@ -13,6 +13,10 @@ sk_pixmap_t* sk4d_pixmap_create(const sk_imageinfo_t* image_info, const void* pi
     return ToPixmap(new SkPixmap(AsImageInfo(image_info), pixels, row_bytes));
 }
 
+sk_pixmap_t* sk4d_pixmap_create2(void) {
+    return ToPixmap(new SkPixmap());
+}
+
 void sk4d_pixmap_destroy(sk_pixmap_t* self) {
     delete AsPixmap(self);
 }
