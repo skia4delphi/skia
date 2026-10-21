@@ -13,6 +13,10 @@ sk_streamadapter_t* sk4d_streamadapter_create(void* context) {
     return ToStreamAdapter(new SkStreamAdapter(context));
 }
 
+sk_streamadapter_t* sk4d_streamadapter_create2(void* context, sk_streamadapter_release_proc release_proc) {
+    return ToStreamAdapter(new SkStreamAdapter(context, release_proc));
+}
+
 void sk4d_streamadapter_destroy(sk_streamadapter_t* self) {
     delete AsStreamAdapter(self);
 }

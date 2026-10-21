@@ -14,6 +14,7 @@
 SK4D_C_PLUS_PLUS_BEGIN_GUARD
 
 SK4D_API sk_streamadapter_t* sk4d_streamadapter_create(void* context);
+SK4D_API sk_streamadapter_t* sk4d_streamadapter_create2(void* context, sk_streamadapter_release_proc release_proc);
 SK4D_API void sk4d_streamadapter_destroy(sk_streamadapter_t* self);
 SK4D_API void sk4d_streamadapter_set_procs(const sk_streamadapter_procs_t* procs);
 SK4D_API sk_wstreamadapter_t* sk4d_wstreamadapter_create(void* context);

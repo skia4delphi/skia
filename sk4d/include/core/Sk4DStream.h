@@ -20,10 +20,13 @@ public:
         bool   (*fSeek)        (void* context, size_t position);
     };
 
+    using ReleaseProc = void (*)(void* context);
+
     static void setProcs(const Procs& procs);
 
 public:
-    SkStreamAdapter(void* context);
+    SkStreamAdapter(void* context, ReleaseProc releaseProc = nullptr);
+    ~SkStreamAdapter() override;
 
     size_t getLength() const override;
     size_t getPosition() const override;
@@ -40,6 +43,7 @@ private:
 
 private:
     void*        fContext;
+    ReleaseProc  fReleaseProc;
     static Procs fProcs;
 
     using INHERITED = SkStreamAsset;

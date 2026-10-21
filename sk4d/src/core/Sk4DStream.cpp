@@ -13,7 +13,15 @@
 
 SkStreamAdapter::Procs SkStreamAdapter::fProcs;
 
-SkStreamAdapter::SkStreamAdapter(void* context) : fContext(context) {
+SkStreamAdapter::SkStreamAdapter(void* context, ReleaseProc releaseProc)
+    : fContext(context)
+    , fReleaseProc(releaseProc)
+{
+}
+
+SkStreamAdapter::~SkStreamAdapter() {
+    if (fReleaseProc)
+        fReleaseProc(fContext);
 }
 
 size_t SkStreamAdapter::getLength() const {

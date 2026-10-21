@@ -673,6 +673,7 @@ typedef sk_point_t sk_vector_t;
 typedef void (*sk_font_path_proc)              (const sk_path_t* path, const sk_matrix_t* matrix, void* context);
 typedef void (*sk_image_raster_release_proc)   (const void* pixels, void* context);
 typedef void (*sk_image_texture_release_proc)  (void* context);
+typedef void (*sk_streamadapter_release_proc)  (void* context);
 typedef void (*sk_surface_raster_release_proc) (void* pixels, void* context);
 
 typedef struct {
