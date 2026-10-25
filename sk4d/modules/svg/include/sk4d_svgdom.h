@@ -17,6 +17,7 @@ SK4D_API sk_svgnode_t* sk4d_svgdom_find_node_by_id(sk_svgdom_t* self, const char
 SK4D_API sk_svgsvg_t* sk4d_svgdom_get_root(const sk_svgdom_t* self);
 SK4D_API sk_svgdom_t* sk4d_svgdom_make_from_file(const char file_name[], sk_fontmgr_t* font_provider);
 SK4D_API sk_svgdom_t* sk4d_svgdom_make_from_stream(sk_stream_t* stream, sk_resourceprovider_t* resource_provider, sk_fontmgr_t* font_provider);
+SK4D_API sk_svgdom_t* sk4d_svgdom_make_from_stream2(sk_stream_t* stream, sk_resourceprovider_t* resource_provider, sk_fontmgr_t* font_provider, sk_resourceprovider_release_proc release_proc, void* context);
 SK4D_API void sk4d_svgdom_render(const sk_svgdom_t* self, sk_canvas_t* canvas);
 SK4D_API void sk4d_svgdom_set_container_size(sk_svgdom_t* self, const sk_size_t* size);
 

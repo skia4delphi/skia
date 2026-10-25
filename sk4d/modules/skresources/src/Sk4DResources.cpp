@@ -41,3 +41,14 @@ sk_sp<skresources::ImageAsset> SkResourceProviderBaseClass::loadImageAsset(const
 void SkResourceProviderBaseClass::setProcs(const Procs& procs) {
     fProcs = procs;
 }
+
+SkResourceProviderReleaseProxy::SkResourceProviderReleaseProxy(sk_sp<skresources::ResourceProvider> resourceProvider, ReleaseProc releaseProc, void* context)
+    : INHERITED(std::move(resourceProvider))
+    , fReleaseProc(releaseProc)
+    , fContext(context)
+{
+}
+
+SkResourceProviderReleaseProxy::~SkResourceProviderReleaseProxy() {
+    fReleaseProc(fContext);
+}

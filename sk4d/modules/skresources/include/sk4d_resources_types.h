@@ -20,6 +20,8 @@ typedef struct {
     sk_data_t* (*load) (void* context, const char path[], const char name[]);
 } sk_resourceproviderbaseclass_procs_t;
 
+typedef void (*sk_resourceprovider_release_proc) (void* context);
+
 SK4D_C_PLUS_PLUS_END_GUARD
 
 #endif

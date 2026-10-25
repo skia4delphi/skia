@@ -33,4 +33,18 @@ private:
     using INHERITED = skresources::ResourceProvider;
 };
 
+class SkResourceProviderReleaseProxy final : public skresources::ResourceProviderProxyBase {
+public:
+    using ReleaseProc = void (*)(void* context);
+
+    SkResourceProviderReleaseProxy(sk_sp<skresources::ResourceProvider> resourceProvider, ReleaseProc releaseProc, void* context);
+    ~SkResourceProviderReleaseProxy() override;
+
+private:
+    ReleaseProc fReleaseProc;
+    void*       fContext;
+
+    using INHERITED = skresources::ResourceProviderProxyBase;
+};
+
 #endif

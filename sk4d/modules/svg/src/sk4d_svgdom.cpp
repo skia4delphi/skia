@@ -34,7 +34,14 @@ sk_svgdom_t* sk4d_svgdom_make_from_file(const char file_name[], sk_fontmgr_t* fo
 }
 
 sk_svgdom_t* sk4d_svgdom_make_from_stream(sk_stream_t* stream, sk_resourceprovider_t* resource_provider, sk_fontmgr_t* font_provider) {
-    auto rp = skresources::DataURIResourceProviderProxy::Make(sk_ref_sp(AsResourceProvider(resource_provider)), skresources::ImageDecodeStrategy::kPreDecode);
+    return sk4d_svgdom_make_from_stream2(stream, resource_provider, font_provider, nullptr, nullptr);
+}
+
+sk_svgdom_t* sk4d_svgdom_make_from_stream2(sk_stream_t* stream, sk_resourceprovider_t* resource_provider, sk_fontmgr_t* font_provider, sk_resourceprovider_release_proc release_proc, void* context) {
+    sk_sp<skresources::ResourceProvider> proxied = sk_ref_sp(AsResourceProvider(resource_provider));
+    if (release_proc)
+        proxied = sk_make_sp<SkResourceProviderReleaseProxy>(std::move(proxied), release_proc, context);
+    auto rp = skresources::DataURIResourceProviderProxy::Make(std::move(proxied), skresources::ImageDecodeStrategy::kPreDecode);
     return ToSVGDOM(SkSVGDOM::Builder().setResourceProvider(std::move(rp)).setFontManager(Sk4DComp::CustomFontMgrWithSystemFonts(sk_ref_sp(AsFontMgr(font_provider))))
                     .setTextShapingFactory(SkShapers::BestAvailable()).make(AsStream(*stream)).release());
 }
